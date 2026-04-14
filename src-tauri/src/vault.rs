@@ -18,7 +18,7 @@ fn payload_str<'a>(payload: &'a HashMap<String, qdrant_client::qdrant::Value>, k
 }
 
 const EMBEDDING_DIM: u64 = 768; // nomic-embed-text dimension
-const SEMANTIC_THRESHOLD: f32 = 0.75; // cosine similarity threshold for semantic edges
+const SEMANTIC_THRESHOLD: f32 = 0.55; // cosine similarity threshold for semantic edges
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VaultInfo {

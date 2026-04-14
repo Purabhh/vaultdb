@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
 import { GraphData } from "../types";
 
@@ -38,6 +38,22 @@ function getTagColor(tag: string): string {
 
 export function GraphView({ data }: GraphViewProps) {
   const fgRef = useRef<ForceGraphMethods<FGNode, FGLink>>(undefined);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+
+  useEffect(() => {
+    function updateSize() {
+      if (containerRef.current) {
+        setDimensions({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight,
+        });
+      }
+    }
+    updateSize();
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, []);
 
   // Only include edges where both source and target exist as nodes
   const nodeIds = new Set(data.nodes.map((n) => n.id));
@@ -132,7 +148,7 @@ export function GraphView({ data }: GraphViewProps) {
   );
 
   return (
-    <div className="graph-container">
+    <div className="graph-container" ref={containerRef}>
       <div className="graph-legend">
         <span className="legend-item">
           <span className="legend-line legend-link"></span> Wikilink
@@ -147,8 +163,8 @@ export function GraphView({ data }: GraphViewProps) {
         nodeCanvasObject={nodeCanvasObject}
         linkCanvasObject={linkCanvasObject}
         backgroundColor="#0a0a0a"
-        width={window.innerWidth - 560}
-        height={window.innerHeight}
+        width={dimensions.width}
+        height={dimensions.height}
         cooldownTicks={100}
         enableNodeDrag={true}
         enableZoomInteraction={true}
