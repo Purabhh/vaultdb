@@ -34,24 +34,35 @@ function getTagColor(tag: string): string {
 
 export function GraphView({ data }: GraphViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const container = containerRef.current;
-    const canvas = canvasRef.current;
-    if (!container || !canvas) return;
+    if (!container) return;
 
-    // Use container dimensions
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    // Clean up any previous canvas
+    container.querySelectorAll("canvas").forEach((c) => c.remove());
+
+    // Create canvas
+    const canvas = document.createElement("canvas");
+    canvas.style.display = "block";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    container.appendChild(canvas);
 
     const ctx = canvas.getContext("2d")!;
-    ctx.scale(dpr, dpr);
+
+    // Sizing function
+    function resize() {
+      const rect = container!.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      // Don't set style width/height — CSS 100% handles it
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { width: rect.width, height: rect.height };
+    }
+
+    let { width, height } = resize();
 
     // Filter edges to only those with valid nodes
     const nodeIds = new Set(data.nodes.map((n) => n.id));
@@ -59,7 +70,7 @@ export function GraphView({ data }: GraphViewProps) {
       (e) => nodeIds.has(e.source) && nodeIds.has(e.target)
     );
 
-    // Create simulation data (deep copy)
+    // Create simulation data
     const nodes: SimNode[] = data.nodes.map((n) => ({
       id: n.id,
       title: n.title,
@@ -93,7 +104,8 @@ export function GraphView({ data }: GraphViewProps) {
       .on("tick", draw);
 
     function draw() {
-      ctx.save();
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
 
       // Background
@@ -138,31 +150,26 @@ export function GraphView({ data }: GraphViewProps) {
         ctx.shadowColor = color;
         ctx.shadowBlur = 12;
 
-        // Circle
         ctx.beginPath();
         ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
         ctx.fillStyle = color;
         ctx.fill();
 
-        // Border
         ctx.shadowBlur = 0;
         ctx.strokeStyle = "rgba(255,255,255,0.15)";
         ctx.lineWidth = 0.5;
         ctx.stroke();
 
         // Label
-        const fontSize = 11;
-        ctx.font = `${fontSize}px Inter, -apple-system, sans-serif`;
+        ctx.font = "11px Inter, -apple-system, sans-serif";
         ctx.fillStyle = "#f0ece8";
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
         ctx.fillText(node.title, node.x, node.y + radius + 4);
       }
-
-      ctx.restore();
     }
 
-    // Zoom/pan behavior
+    // Zoom/pan
     const zoom = d3
       .zoom<HTMLCanvasElement, unknown>()
       .scaleExtent([0.1, 5])
@@ -173,16 +180,15 @@ export function GraphView({ data }: GraphViewProps) {
 
     d3.select(canvas).call(zoom);
 
-    // Drag behavior
+    // Drag
     let dragNode: SimNode | null = null;
 
     function findNode(mx: number, my: number): SimNode | null {
-      // Convert mouse coords through transform
       const tx = (mx - transform.x) / transform.k;
       const ty = (my - transform.y) / transform.k;
       for (const node of nodes) {
         if (node.x == null || node.y == null) continue;
-        const r = Math.max(4, Math.sqrt(node.link_count + 1) * 4) + 5;
+        const r = Math.max(4, Math.sqrt(node.link_count + 1) * 4) + 8;
         const dx = tx - node.x;
         const dy = ty - node.y;
         if (dx * dx + dy * dy < r * r) return node;
@@ -192,14 +198,11 @@ export function GraphView({ data }: GraphViewProps) {
 
     canvas.addEventListener("mousedown", (e) => {
       const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      dragNode = findNode(mx, my);
+      dragNode = findNode(e.clientX - rect.left, e.clientY - rect.top);
       if (dragNode) {
         simulation.alphaTarget(0.3).restart();
         dragNode.fx = dragNode.x;
         dragNode.fy = dragNode.y;
-        // Disable zoom panning while dragging a node
         d3.select(canvas).on(".zoom", null);
       }
     });
@@ -207,10 +210,8 @@ export function GraphView({ data }: GraphViewProps) {
     canvas.addEventListener("mousemove", (e) => {
       if (!dragNode) return;
       const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      dragNode.fx = (mx - transform.x) / transform.k;
-      dragNode.fy = (my - transform.y) / transform.k;
+      dragNode.fx = (e.clientX - rect.left - transform.x) / transform.k;
+      dragNode.fy = (e.clientY - rect.top - transform.y) / transform.k;
     });
 
     canvas.addEventListener("mouseup", () => {
@@ -219,28 +220,24 @@ export function GraphView({ data }: GraphViewProps) {
         dragNode.fx = null;
         dragNode.fy = null;
         dragNode = null;
-        // Re-enable zoom
         d3.select(canvas).call(zoom);
       }
     });
 
-    // Handle resize
-    const resizeObserver = new ResizeObserver(() => {
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      canvas.style.width = `${w}px`;
-      canvas.style.height = `${h}px`;
-      ctx.scale(dpr, dpr);
-      simulation.force("center", d3.forceCenter(w / 2, h / 2));
+    // Resize handler
+    const ro = new ResizeObserver(() => {
+      const dims = resize();
+      width = dims.width;
+      height = dims.height;
+      simulation.force("center", d3.forceCenter(width / 2, height / 2));
       simulation.alpha(0.3).restart();
     });
-    resizeObserver.observe(container);
+    ro.observe(container);
 
     return () => {
       simulation.stop();
-      resizeObserver.disconnect();
+      ro.disconnect();
+      canvas.remove();
     };
   }, [data]);
 
@@ -254,7 +251,6 @@ export function GraphView({ data }: GraphViewProps) {
           <span className="legend-line legend-semantic"></span> Semantic
         </span>
       </div>
-      <canvas ref={canvasRef} style={{ display: "block" }} />
     </div>
   );
 }
