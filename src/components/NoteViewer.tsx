@@ -1,4 +1,6 @@
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { NoteDetail } from "../types";
 
 interface NoteViewerProps {
@@ -12,6 +14,12 @@ export function NoteViewer({ note, loading }: NoteViewerProps) {
   if (loading) {
     return <div className="note-viewer"><div className="loading">Loading note...</div></div>;
   }
+
+  // Convert [[wikilinks]] to bold text so they stand out
+  const renderedMarkdown = note.raw_content.replace(
+    /\[\[([^\]]+)\]\]/g,
+    "**[[$1]]**"
+  );
 
   return (
     <div className="note-viewer">
@@ -36,7 +44,7 @@ export function NoteViewer({ note, loading }: NoteViewerProps) {
             className={!showEmbeddings ? "active" : ""}
             onClick={() => setShowEmbeddings(false)}
           >
-            Markdown
+            Note
           </button>
           <button
             className={showEmbeddings ? "active" : ""}
@@ -49,8 +57,10 @@ export function NoteViewer({ note, loading }: NoteViewerProps) {
 
       <div className="note-body">
         {!showEmbeddings ? (
-          <div className="note-raw-content">
-            <pre>{note.raw_content}</pre>
+          <div className="note-rendered-content">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {renderedMarkdown}
+            </ReactMarkdown>
           </div>
         ) : (
           <div className="note-chunks">
