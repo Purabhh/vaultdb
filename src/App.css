@@ -5,15 +5,15 @@
 }
 
 :root {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-pink: #ec4899;
-  --danger: #ef4444;
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --bg-tertiary: #2a2320;
+  --text-primary: #f0ece8;
+  --text-secondary: #9c8e82;
+  --accent: #8b6914;
+  --accent-hover: #c49b2a;
+  --accent-pink: #a67c52;
+  --danger: #b34040;
   --sidebar-width: 280px;
 }
 
@@ -343,7 +343,7 @@ body {
 }
 
 .legend-link {
-  background: var(--accent);
+  background: var(--accent-hover);
 }
 
 .legend-semantic {

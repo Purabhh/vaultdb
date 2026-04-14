@@ -24,8 +24,8 @@ interface FGLink {
 
 const TAG_COLORS: Record<string, string> = {};
 const PALETTE = [
-  "#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6",
-  "#ef4444", "#06b6d4", "#84cc16", "#f97316", "#a855f7",
+  "#c49b2a", "#a67c52", "#d4a853", "#8b6914", "#e8c97a",
+  "#b08d57", "#6b4f2e", "#deb887", "#c4956a", "#9c7a3c",
 ];
 
 function getTagColor(tag: string): string {
@@ -73,7 +73,7 @@ export function GraphView({ data }: GraphViewProps) {
     (node: FGNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
       const radius = Math.max(4, Math.sqrt(node.link_count + 1) * 4);
       const color =
-        node.tags.length > 0 ? getTagColor(node.tags[0]) : "#6366f1";
+        node.tags.length > 0 ? getTagColor(node.tags[0]) : "#c49b2a";
 
       // Glow
       ctx.shadowColor = color;
@@ -95,7 +95,7 @@ export function GraphView({ data }: GraphViewProps) {
       // Label
       const fontSize = Math.max(10, 12 / globalScale);
       ctx.font = `${fontSize}px Inter, -apple-system, sans-serif`;
-      ctx.fillStyle = "#e2e8f0";
+      ctx.fillStyle = "#f0ece8";
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       ctx.fillText(node.title, node.x!, node.y! + radius + 4);
@@ -116,12 +116,12 @@ export function GraphView({ data }: GraphViewProps) {
       if (link.edge_type === "semantic") {
         // Dotted pink line for semantic edges
         ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = `rgba(236, 72, 153, ${0.15 + link.weight * 0.4})`;
+        ctx.strokeStyle = `rgba(166, 124, 82, ${0.15 + link.weight * 0.4})`;
         ctx.lineWidth = 1;
       } else {
-        // Solid blue line for explicit links
+        // Solid gold line for explicit links
         ctx.setLineDash([]);
-        ctx.strokeStyle = "rgba(99, 102, 241, 0.5)";
+        ctx.strokeStyle = "rgba(196, 155, 42, 0.5)";
         ctx.lineWidth = 1.5;
       }
 
@@ -146,7 +146,7 @@ export function GraphView({ data }: GraphViewProps) {
         graphData={graphData}
         nodeCanvasObject={nodeCanvasObject}
         linkCanvasObject={linkCanvasObject}
-        backgroundColor="#0f172a"
+        backgroundColor="#0a0a0a"
         width={window.innerWidth - 560}
         height={window.innerHeight}
         cooldownTicks={100}
