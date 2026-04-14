@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { VaultInfo } from "../types";
+import { VaultInfo, FileTreeNode } from "../types";
+import { FileTree } from "./FileTree";
+
+type View = "graph" | "search" | "note";
 
 interface SidebarProps {
   vaults: VaultInfo[];
@@ -8,8 +11,11 @@ interface SidebarProps {
   onSelectVault: (name: string) => void;
   onCreateVault: (name: string, path: string) => void;
   onDeleteVault: (name: string) => void;
-  currentView: "graph" | "search";
-  onViewChange: (view: "graph" | "search") => void;
+  currentView: View;
+  onViewChange: (view: View) => void;
+  fileTree: FileTreeNode | null;
+  onSelectNote: (path: string) => void;
+  selectedNotePath: string | null;
 }
 
 export function Sidebar({
@@ -20,6 +26,9 @@ export function Sidebar({
   onDeleteVault,
   currentView,
   onViewChange,
+  fileTree,
+  onSelectNote,
+  selectedNotePath,
 }: SidebarProps) {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
@@ -124,6 +133,22 @@ export function Sidebar({
           </button>
         </div>
       </div>
+
+      {activeVault && fileTree && (
+        <div className="sidebar-section sidebar-files">
+          <div className="section-header">
+            <span>Files</span>
+          </div>
+          <FileTree
+            tree={fileTree}
+            onSelectNote={(path) => {
+              onSelectNote(path);
+              onViewChange("note");
+            }}
+            selectedPath={selectedNotePath}
+          />
+        </div>
+      )}
     </aside>
   );
 }

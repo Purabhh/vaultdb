@@ -30,3 +30,31 @@ export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
 }
+
+export interface FileTreeNode {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  children: FileTreeNode[];
+}
+
+export interface SimilarNote {
+  title: string;
+  chunk: string;
+  score: number;
+}
+
+export interface ChunkDetail {
+  index: number;
+  text: string;
+  similar_notes: SimilarNote[];
+}
+
+export interface NoteDetail {
+  title: string;
+  path: string;
+  raw_content: string;
+  tags: string[];
+  links: string[];
+  chunks: ChunkDetail[];
+}

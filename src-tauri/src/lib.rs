@@ -4,7 +4,7 @@ mod vault;
 
 use tokio::sync::Mutex;
 use tauri::State;
-use vault::{GraphData, SearchResult, VaultInfo, VaultManager};
+use vault::{FileTreeNode, GraphData, NoteDetail, SearchResult, VaultInfo, VaultManager};
 
 struct AppState {
     vault_manager: Mutex<Option<VaultManager>>,
@@ -62,6 +62,24 @@ async fn get_graph(state: State<'_, AppState>, vault_name: String) -> Result<Gra
     mgr.build_graph(&vault_name).await
 }
 
+#[tauri::command]
+async fn get_file_tree(state: State<'_, AppState>, vault_name: String) -> Result<FileTreeNode, String> {
+    let lock = state.vault_manager.lock().await;
+    let mgr = lock.as_ref().ok_or("Manager not initialized")?;
+    mgr.get_file_tree(&vault_name)
+}
+
+#[tauri::command]
+async fn get_note_detail(
+    state: State<'_, AppState>,
+    vault_name: String,
+    note_path: String,
+) -> Result<NoteDetail, String> {
+    let lock = state.vault_manager.lock().await;
+    let mgr = lock.as_ref().ok_or("Manager not initialized")?;
+    mgr.get_note_detail(&vault_name, &note_path).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -78,6 +96,8 @@ pub fn run() {
             delete_vault,
             search_vault,
             get_graph,
+            get_file_tree,
+            get_note_detail,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

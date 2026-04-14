@@ -39,6 +39,12 @@ function getTagColor(tag: string): string {
 export function GraphView({ data }: GraphViewProps) {
   const fgRef = useRef<ForceGraphMethods<FGNode, FGLink>>(undefined);
 
+  // Only include edges where both source and target exist as nodes
+  const nodeIds = new Set(data.nodes.map((n) => n.id));
+  const validEdges = data.edges.filter(
+    (e) => nodeIds.has(e.source) && nodeIds.has(e.target)
+  );
+
   const graphData = {
     nodes: data.nodes.map((n) => ({
       id: n.id,
@@ -46,7 +52,7 @@ export function GraphView({ data }: GraphViewProps) {
       tags: n.tags,
       link_count: n.link_count,
     })),
-    links: data.edges.map((e) => ({
+    links: validEdges.map((e) => ({
       source: e.source,
       target: e.target,
       edge_type: e.edge_type,
@@ -56,16 +62,22 @@ export function GraphView({ data }: GraphViewProps) {
 
   useEffect(() => {
     if (fgRef.current) {
-      fgRef.current.d3Force("charge")?.strength(-120);
-      fgRef.current.d3Force("link")?.distance(80);
+      fgRef.current.d3Force("charge")?.strength(-200);
+      fgRef.current.d3Force("link")?.distance((link: FGLink) =>
+        link.edge_type === "semantic" ? 150 : 80
+      );
     }
   }, [data]);
 
   const nodeCanvasObject = useCallback(
     (node: FGNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
-      const radius = Math.max(3, Math.sqrt(node.link_count + 1) * 3);
+      const radius = Math.max(4, Math.sqrt(node.link_count + 1) * 4);
       const color =
         node.tags.length > 0 ? getTagColor(node.tags[0]) : "#6366f1";
+
+      // Glow
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 12;
 
       // Node circle
       ctx.beginPath();
@@ -73,44 +85,73 @@ export function GraphView({ data }: GraphViewProps) {
       ctx.fillStyle = color;
       ctx.fill();
 
-      // Glow
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 8;
-      ctx.fill();
+      // Border
+      ctx.strokeStyle = "rgba(255,255,255,0.2)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
       ctx.shadowBlur = 0;
 
       // Label
       const fontSize = Math.max(10, 12 / globalScale);
-      ctx.font = `${fontSize}px Inter, sans-serif`;
+      ctx.font = `${fontSize}px Inter, -apple-system, sans-serif`;
       ctx.fillStyle = "#e2e8f0";
       ctx.textAlign = "center";
-      ctx.fillText(node.title, node.x!, node.y! + radius + fontSize);
+      ctx.textBaseline = "top";
+      ctx.fillText(node.title, node.x!, node.y! + radius + 4);
     },
     []
   );
 
-  const linkColor = useCallback((link: FGLink) => {
-    return link.edge_type === "link"
-      ? "rgba(99, 102, 241, 0.3)"
-      : "rgba(236, 72, 153, 0.15)";
-  }, []);
+  const linkCanvasObject = useCallback(
+    (link: FGLink, ctx: CanvasRenderingContext2D) => {
+      const source = link.source as FGNode;
+      const target = link.target as FGNode;
+      if (!source.x || !target.x) return;
+
+      ctx.beginPath();
+      ctx.moveTo(source.x, source.y!);
+      ctx.lineTo(target.x, target.y!);
+
+      if (link.edge_type === "semantic") {
+        // Dotted pink line for semantic edges
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = `rgba(236, 72, 153, ${0.15 + link.weight * 0.4})`;
+        ctx.lineWidth = 1;
+      } else {
+        // Solid blue line for explicit links
+        ctx.setLineDash([]);
+        ctx.strokeStyle = "rgba(99, 102, 241, 0.5)";
+        ctx.lineWidth = 1.5;
+      }
+
+      ctx.stroke();
+      ctx.setLineDash([]);
+    },
+    []
+  );
 
   return (
     <div className="graph-container">
+      <div className="graph-legend">
+        <span className="legend-item">
+          <span className="legend-line legend-link"></span> Wikilink
+        </span>
+        <span className="legend-item">
+          <span className="legend-line legend-semantic"></span> Semantic
+        </span>
+      </div>
       <ForceGraph2D
         ref={fgRef}
         graphData={graphData}
         nodeCanvasObject={nodeCanvasObject}
-        linkColor={linkColor}
-        linkWidth={(link: FGLink) => (link.edge_type === "link" ? 1.5 : 0.5)}
-        linkDirectionalParticles={(link: FGLink) =>
-          link.edge_type === "link" ? 2 : 0
-        }
-        linkDirectionalParticleWidth={2}
+        linkCanvasObject={linkCanvasObject}
         backgroundColor="#0f172a"
-        width={window.innerWidth - 260}
+        width={window.innerWidth - 560}
         height={window.innerHeight}
         cooldownTicks={100}
+        enableNodeDrag={true}
+        enableZoomInteraction={true}
       />
     </div>
   );

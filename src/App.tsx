@@ -3,16 +3,20 @@ import { invoke } from "@tauri-apps/api/core";
 import { Sidebar } from "./components/Sidebar";
 import { GraphView } from "./components/GraphView";
 import { SearchPanel } from "./components/SearchPanel";
-import { VaultInfo, GraphData, SearchResult } from "./types";
+import { NoteViewer } from "./components/NoteViewer";
+import { VaultInfo, GraphData, SearchResult, FileTreeNode, NoteDetail } from "./types";
 import "./App.css";
 
-type View = "graph" | "search";
+type View = "graph" | "search" | "note";
 
 function App() {
   const [vaults, setVaults] = useState<VaultInfo[]>([]);
   const [activeVault, setActiveVault] = useState<string | null>(null);
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [fileTree, setFileTree] = useState<FileTreeNode | null>(null);
+  const [noteDetail, setNoteDetail] = useState<NoteDetail | null>(null);
+  const [selectedNotePath, setSelectedNotePath] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<View>("graph");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,11 +42,18 @@ function App() {
     setActiveVault(name);
     setLoading(true);
     setError(null);
+    setNoteDetail(null);
+    setSelectedNotePath(null);
     try {
-      const graph = await invoke<GraphData>("get_graph", { vaultName: name });
+      const [graph, tree] = await Promise.all([
+        invoke<GraphData>("get_graph", { vaultName: name }),
+        invoke<FileTreeNode>("get_file_tree", { vaultName: name }),
+      ]);
       setGraphData(graph);
+      setFileTree(tree);
+      setCurrentView("graph");
     } catch (e) {
-      setError(`Failed to load graph: ${e}`);
+      setError(`Failed to load vault: ${e}`);
     } finally {
       setLoading(false);
     }
@@ -72,6 +83,8 @@ function App() {
       if (activeVault === name) {
         setActiveVault(null);
         setGraphData(null);
+        setFileTree(null);
+        setNoteDetail(null);
       }
     } catch (e) {
       setError(`Failed to delete vault: ${e}`);
@@ -96,6 +109,25 @@ function App() {
     }
   }
 
+  async function handleSelectNote(path: string) {
+    if (!activeVault) return;
+    setSelectedNotePath(path);
+    setLoading(true);
+    setError(null);
+    try {
+      const detail = await invoke<NoteDetail>("get_note_detail", {
+        vaultName: activeVault,
+        notePath: path,
+      });
+      setNoteDetail(detail);
+      setCurrentView("note");
+    } catch (e) {
+      setError(`Failed to load note: ${e}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="app">
       <Sidebar
@@ -106,6 +138,9 @@ function App() {
         onDeleteVault={handleDeleteVault}
         currentView={currentView}
         onViewChange={setCurrentView}
+        fileTree={fileTree}
+        onSelectNote={handleSelectNote}
+        selectedNotePath={selectedNotePath}
       />
       <main className="main-content">
         {error && <div className="error-banner">{error}</div>}
@@ -119,6 +154,9 @@ function App() {
             results={searchResults}
             onSearch={handleSearch}
           />
+        )}
+        {!loading && currentView === "note" && noteDetail && (
+          <NoteViewer note={noteDetail} loading={false} />
         )}
         {!loading && !activeVault && (
           <div className="empty-state">
