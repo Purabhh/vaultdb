@@ -1,6 +1,7 @@
 use qdrant_client::qdrant::{
     CreateCollectionBuilder, Distance, PointStruct, SearchPointsBuilder,
     VectorParamsBuilder, UpsertPointsBuilder, DeleteCollectionBuilder,
+    DeletePointsBuilder, Filter, Condition,
     vectors_config::Config, VectorsConfig,
 };
 use qdrant_client::Qdrant;
@@ -299,6 +300,9 @@ impl VaultManager {
         // Collect per-note average vectors for semantic edges
         let mut note_vectors: HashMap<String, Vec<Vec<f32>>> = HashMap::new();
 
+        // Collect raw link data per note — resolve after all nodes are built
+        let mut pending_links: Vec<(String, Vec<String>)> = Vec::new();
+
         // Build nodes from unique titles
         for point in &scroll_result.result {
             let payload = &point.payload;
@@ -325,15 +329,97 @@ impl VaultManager {
             });
             node.link_count = links.len();
 
-            // Create link edges
-            for link in &links {
-                if nodes_map.contains_key(link) || true {
-                    edges.push(GraphEdge {
-                        source: title.clone(),
-                        target: link.clone(),
-                        edge_type: "link".to_string(),
-                        weight: 1.0,
-                    });
+            if !links.is_empty() {
+                pending_links.push((title.clone(), links));
+            }
+        }
+
+        // Resolve wikilinks like Obsidian: match by filename, ignoring path prefixes,
+        // heading anchors, and case. Create ghost nodes for unresolved links.
+        // Generate backlinks (bidirectional edges).
+        let all_titles: Vec<String> = nodes_map.keys().cloned().collect();
+        let mut edge_set: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
+
+        for (source_title, links) in &pending_links {
+            for link in links {
+                // Strip heading anchor: "note#heading" → "note"
+                let link_no_anchor = link.split('#').next().unwrap_or(link);
+                // Strip path prefix: "2d-tutor/overview" → "overview"
+                let link_name = link_no_anchor.rsplit('/').next().unwrap_or(link_no_anchor);
+
+                if link_name.is_empty() { continue; }
+
+                // Try exact match first, then case-insensitive
+                let resolved = if nodes_map.contains_key(link_name) {
+                    Some(link_name.to_string())
+                } else if nodes_map.contains_key(link_no_anchor) {
+                    Some(link_no_anchor.to_string())
+                } else {
+                    let lower = link_name.to_lowercase();
+                    all_titles.iter().find(|t| t.to_lowercase() == lower).cloned()
+                };
+
+                let target = match resolved {
+                    Some(t) => t,
+                    None => {
+                        // Create ghost node for unresolved link
+                        let ghost_title = link_name.to_string();
+                        nodes_map.entry(ghost_title.clone()).or_insert_with(|| GraphNode {
+                            id: ghost_title.clone(),
+                            title: ghost_title.clone(),
+                            path: String::new(), // ghost — no file on disk
+                            tags: vec![],
+                            link_count: 0,
+                        });
+                        ghost_title
+                    }
+                };
+
+                if target != *source_title {
+                    // Forward edge: source → target
+                    if edge_set.insert((source_title.clone(), target.clone())) {
+                        edges.push(GraphEdge {
+                            source: source_title.clone(),
+                            target: target.clone(),
+                            edge_type: "link".to_string(),
+                            weight: 1.0,
+                        });
+                    }
+                    // Backlink edge: target → source
+                    if edge_set.insert((target.clone(), source_title.clone())) {
+                        edges.push(GraphEdge {
+                            source: target,
+                            target: source_title.clone(),
+                            edge_type: "backlink".to_string(),
+                            weight: 0.8,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Tag-based connections: notes sharing the same tag get a "tag" edge
+        let mut tag_to_notes: HashMap<String, Vec<String>> = HashMap::new();
+        for (title, node) in &nodes_map {
+            for tag in &node.tags {
+                tag_to_notes.entry(tag.clone()).or_default().push(title.clone());
+            }
+        }
+        for (_tag, notes) in &tag_to_notes {
+            if notes.len() < 2 || notes.len() > 20 { continue; } // skip very common tags
+            for i in 0..notes.len() {
+                for j in (i + 1)..notes.len() {
+                    let a = &notes[i];
+                    let b = &notes[j];
+                    if !edge_set.contains(&(a.clone(), b.clone())) {
+                        edge_set.insert((a.clone(), b.clone()));
+                        edges.push(GraphEdge {
+                            source: a.clone(),
+                            target: b.clone(),
+                            edge_type: "tag".to_string(),
+                            weight: 0.5,
+                        });
+                    }
                 }
             }
         }
@@ -385,6 +471,281 @@ impl VaultManager {
             .ok_or_else(|| format!("Vault '{}' not found", vault_name))?;
         let root_path = Path::new(&vault.source_path);
         build_file_tree(root_path, root_path)
+    }
+
+    /// Validate that a path is inside the vault's source directory (prevents path traversal)
+    fn validate_path(&self, vault_name: &str, note_path: &str) -> Result<PathBuf, String> {
+        let vault = self.vaults.get(vault_name)
+            .ok_or_else(|| format!("Vault '{}' not found", vault_name))?;
+        let source = std::fs::canonicalize(&vault.source_path)
+            .map_err(|e| format!("Cannot resolve vault path: {}", e))?;
+        let target = std::fs::canonicalize(note_path)
+            .or_else(|_| {
+                // File might not exist yet (create_note), canonicalize parent instead
+                let p = Path::new(note_path);
+                if let Some(parent) = p.parent() {
+                    std::fs::canonicalize(parent).map(|cp| cp.join(p.file_name().unwrap_or_default()))
+                } else {
+                    Err(std::io::Error::new(std::io::ErrorKind::NotFound, "invalid path"))
+                }
+            })
+            .map_err(|e| format!("Cannot resolve note path: {}", e))?;
+        if !target.starts_with(&source) {
+            return Err("Path traversal denied: note is outside the vault".to_string());
+        }
+        Ok(target)
+    }
+
+    pub async fn save_note(&self, vault_name: &str, note_path: &str, content: &str) -> Result<(), String> {
+        let validated = self.validate_path(vault_name, note_path)?;
+        std::fs::write(&validated, content)
+            .map_err(|e| format!("Failed to write file: {}", e))
+    }
+
+    pub async fn reembed_note(&self, vault_name: &str, note_path: &str) -> Result<NoteDetail, String> {
+        let validated = self.validate_path(vault_name, note_path)?;
+        let collection = format!("vault_{}", vault_name);
+
+        // Delete old Qdrant points for this note
+        let path_filter = Filter::must(vec![
+            Condition::matches("path", note_path.to_string()),
+        ]);
+        self.qdrant
+            .delete_points(
+                DeletePointsBuilder::new(&collection)
+                    .points(path_filter),
+            )
+            .await
+            .map_err(|e| format!("Failed to delete old points: {}", e))?;
+
+        // Re-parse the file
+        let note = parse_markdown_file(&validated)
+            .map_err(|e| format!("Failed to parse: {}", e))?;
+
+        // Re-embed and upsert new chunks
+        if !note.chunks.is_empty() {
+            let embeddings = self.embedder.embed(note.chunks.clone()).await
+                .map_err(|e| format!("Re-embed failed: {}. Is Ollama running?", e))?;
+
+            let links_json = serde_json::to_string(&note.links).unwrap_or_default();
+            let tags_json = serde_json::to_string(&note.tags).unwrap_or_default();
+
+            let points: Vec<PointStruct> = note.chunks.iter().zip(embeddings.iter()).enumerate()
+                .map(|(i, (chunk, embedding))| {
+                    let payload: HashMap<String, qdrant_client::qdrant::Value> = HashMap::from([
+                        ("title".to_string(), note.title.clone().into()),
+                        ("path".to_string(), note.path.clone().into()),
+                        ("chunk".to_string(), chunk.clone().into()),
+                        ("chunk_index".to_string(), (i as i64).into()),
+                        ("links".to_string(), links_json.clone().into()),
+                        ("tags".to_string(), tags_json.clone().into()),
+                    ]);
+                    PointStruct::new(Uuid::new_v4().to_string(), embedding.clone(), payload)
+                })
+                .collect();
+
+            for batch in points.chunks(100) {
+                self.qdrant
+                    .upsert_points(UpsertPointsBuilder::new(&collection, batch.to_vec()))
+                    .await
+                    .map_err(|e| format!("Upsert failed: {}", e))?;
+            }
+        }
+
+        // Return updated NoteDetail
+        self.get_note_detail(vault_name, note_path).await
+    }
+
+    pub async fn create_note(&mut self, vault_name: &str, parent_dir: &str, file_name: &str) -> Result<String, String> {
+        let vault = self.vaults.get(vault_name)
+            .ok_or_else(|| format!("Vault '{}' not found", vault_name))?;
+
+        // Validate parent_dir is inside vault
+        let source = std::fs::canonicalize(&vault.source_path)
+            .map_err(|e| format!("Cannot resolve vault path: {}", e))?;
+        let parent = std::fs::canonicalize(parent_dir)
+            .map_err(|e| format!("Cannot resolve parent dir: {}", e))?;
+        if !parent.starts_with(&source) {
+            return Err("Path traversal denied: directory is outside the vault".to_string());
+        }
+
+        let sanitized = file_name.trim().replace(['/', '\\'], "");
+        let name = if sanitized.ends_with(".md") {
+            sanitized
+        } else {
+            format!("{}.md", sanitized)
+        };
+
+        let full_path = parent.join(&name);
+        if full_path.exists() {
+            return Err(format!("File already exists: {}", full_path.display()));
+        }
+
+        let title = name.trim_end_matches(".md");
+        let content = format!("# {}\n", title);
+        std::fs::write(&full_path, &content)
+            .map_err(|e| format!("Failed to create file: {}", e))?;
+
+        // Update note count
+        if let Some(info) = self.vaults.get_mut(vault_name) {
+            info.note_count += 1;
+            self.save_config()?;
+        }
+
+        Ok(full_path.to_string_lossy().to_string())
+    }
+
+    pub async fn delete_note(&mut self, vault_name: &str, note_path: &str) -> Result<(), String> {
+        let validated = self.validate_path(vault_name, note_path)?;
+        let collection = format!("vault_{}", vault_name);
+
+        // Delete file from disk
+        std::fs::remove_file(&validated)
+            .map_err(|e| format!("Failed to delete file: {}", e))?;
+
+        // Delete all Qdrant points for this note
+        let path_filter = Filter::must(vec![
+            Condition::matches("path", note_path.to_string()),
+        ]);
+        self.qdrant
+            .delete_points(
+                DeletePointsBuilder::new(&collection)
+                    .points(path_filter),
+            )
+            .await
+            .map_err(|e| format!("Failed to delete points: {}", e))?;
+
+        // Update note count
+        if let Some(info) = self.vaults.get_mut(vault_name) {
+            if info.note_count > 0 {
+                info.note_count -= 1;
+            }
+            self.save_config()?;
+        }
+
+        Ok(())
+    }
+
+    pub fn create_folder(&self, vault_name: &str, parent_dir: &str, folder_name: &str) -> Result<String, String> {
+        let vault = self.vaults.get(vault_name)
+            .ok_or_else(|| format!("Vault '{}' not found", vault_name))?;
+        let source = std::fs::canonicalize(&vault.source_path)
+            .map_err(|e| format!("Cannot resolve vault path: {}", e))?;
+        let parent = std::fs::canonicalize(parent_dir)
+            .map_err(|e| format!("Cannot resolve parent dir: {}", e))?;
+        if !parent.starts_with(&source) {
+            return Err("Path traversal denied: directory is outside the vault".to_string());
+        }
+
+        let sanitized = folder_name.trim().replace(['/', '\\'], "");
+        if sanitized.is_empty() {
+            return Err("Folder name cannot be empty".to_string());
+        }
+
+        let full_path = parent.join(&sanitized);
+        if full_path.exists() {
+            return Err(format!("Folder already exists: {}", full_path.display()));
+        }
+
+        std::fs::create_dir(&full_path)
+            .map_err(|e| format!("Failed to create folder: {}", e))?;
+
+        Ok(full_path.to_string_lossy().to_string())
+    }
+
+    pub fn delete_folder(&self, vault_name: &str, folder_path: &str) -> Result<(), String> {
+        let vault = self.vaults.get(vault_name)
+            .ok_or_else(|| format!("Vault '{}' not found", vault_name))?;
+        let source = std::fs::canonicalize(&vault.source_path)
+            .map_err(|e| format!("Cannot resolve vault path: {}", e))?;
+        let target = std::fs::canonicalize(folder_path)
+            .map_err(|e| format!("Cannot resolve folder path: {}", e))?;
+        if !target.starts_with(&source) || target == source {
+            return Err("Cannot delete vault root or paths outside the vault".to_string());
+        }
+
+        // Check if folder is empty (only allow deleting empty folders, or force with contents)
+        let entries: Vec<_> = std::fs::read_dir(&target)
+            .map_err(|e| format!("Cannot read folder: {}", e))?
+            .collect();
+        if entries.is_empty() {
+            std::fs::remove_dir(&target)
+                .map_err(|e| format!("Failed to delete folder: {}", e))?;
+        } else {
+            std::fs::remove_dir_all(&target)
+                .map_err(|e| format!("Failed to delete folder: {}", e))?;
+        }
+
+        Ok(())
+    }
+
+    /// Create a brand new empty vault directory and register it
+    pub async fn create_new_vault(&mut self, name: &str, parent_dir: &str) -> Result<VaultInfo, String> {
+        let sanitized = name.trim().replace(['/', '\\'], "");
+        if sanitized.is_empty() {
+            return Err("Vault name cannot be empty".to_string());
+        }
+
+        let vault_dir = Path::new(parent_dir).join(&sanitized);
+        if vault_dir.exists() {
+            return Err(format!("Directory already exists: {}", vault_dir.display()));
+        }
+
+        std::fs::create_dir_all(&vault_dir)
+            .map_err(|e| format!("Failed to create vault directory: {}", e))?;
+
+        let collection_name = format!("vault_{}", sanitized);
+        self.qdrant
+            .create_collection(
+                CreateCollectionBuilder::new(&collection_name)
+                    .vectors_config(VectorsConfig {
+                        config: Some(Config::Params(
+                            VectorParamsBuilder::new(EMBEDDING_DIM, Distance::Cosine).build(),
+                        )),
+                    }),
+            )
+            .await
+            .map_err(|e| format!("Failed to create collection: {}", e))?;
+
+        let info = VaultInfo {
+            name: sanitized.clone(),
+            source_path: vault_dir.to_string_lossy().to_string(),
+            note_count: 0,
+        };
+
+        self.vaults.insert(sanitized, info.clone());
+        self.save_config()?;
+
+        Ok(info)
+    }
+
+    pub fn rename_item(&self, vault_name: &str, old_path: &str, new_name: &str) -> Result<String, String> {
+        let vault = self.vaults.get(vault_name)
+            .ok_or_else(|| format!("Vault '{}' not found", vault_name))?;
+        let source = std::fs::canonicalize(&vault.source_path)
+            .map_err(|e| format!("Cannot resolve vault path: {}", e))?;
+        let old = std::fs::canonicalize(old_path)
+            .map_err(|e| format!("Cannot resolve path: {}", e))?;
+        if !old.starts_with(&source) {
+            return Err("Path traversal denied".to_string());
+        }
+
+        let sanitized = new_name.trim().replace(['/', '\\'], "");
+        if sanitized.is_empty() {
+            return Err("Name cannot be empty".to_string());
+        }
+
+        let new_path = old.parent()
+            .ok_or("Cannot get parent directory")?
+            .join(&sanitized);
+        if new_path.exists() {
+            return Err(format!("'{}' already exists", sanitized));
+        }
+
+        std::fs::rename(&old, &new_path)
+            .map_err(|e| format!("Failed to rename: {}", e))?;
+
+        Ok(new_path.to_string_lossy().to_string())
     }
 
     pub async fn get_note_detail(&self, vault_name: &str, note_path: &str) -> Result<NoteDetail, String> {

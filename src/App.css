@@ -17,7 +17,7 @@
   --bg-tertiary: #2a2320;
   --text-primary: #f0ece8;
   --text-secondary: #9c8e82;
-  --accent: oklch(0.97 0 0);
+  --vdb-accent: #8b6914;
   --accent-hover: #c49b2a;
   --accent-pink: #a67c52;
   --danger: #b34040;
@@ -34,6 +34,7 @@
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
@@ -85,10 +86,182 @@ body {
 }
 
 .app-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--vdb-accent);
   letter-spacing: -0.5px;
+}
+
+/* Vault switcher */
+.vault-switcher-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.vault-switcher-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.vault-switcher-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.vault-switcher-chevron {
+  color: var(--text-secondary);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.vault-switcher-chevron.open {
+  transform: rotate(180deg);
+}
+
+.vault-switcher-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.sidebar-header {
+  position: relative;
+}
+
+.vault-switcher-item {
+  display: flex;
+  align-items: center;
+}
+
+.vault-switcher-item.active {
+  background: var(--bg-tertiary);
+}
+
+.vault-switcher-item-name {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  box-shadow: none;
+}
+
+.vault-switcher-item-name:hover {
+  color: var(--accent-hover);
+}
+
+.vault-switcher-item-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.vault-switcher-item-delete {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 10px;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  box-shadow: none;
+}
+
+.vault-switcher-item:hover .vault-switcher-item-delete {
+  opacity: 1;
+}
+
+.vault-switcher-item-delete:hover {
+  color: var(--danger);
+}
+
+.vault-switcher-divider {
+  height: 1px;
+  background: var(--bg-tertiary);
+  margin: 4px 0;
+}
+
+.vault-switcher-add {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  box-shadow: none;
+}
+
+.vault-switcher-add:hover {
+  color: var(--accent-hover);
+  background: var(--bg-tertiary);
+}
+
+.vault-switcher-create {
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vault-switcher-create input {
+  background: var(--bg-primary);
+  border: none;
+  padding: 6px 8px;
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.vault-switcher-create .path-picker {
+  display: flex;
+  gap: 4px;
+}
+
+.vault-switcher-create .path-picker input {
+  flex: 1;
+  min-width: 0;
+}
+
+.vault-switcher-create .path-picker button {
+  background: var(--bg-tertiary);
+  border: none;
+  color: var(--text-secondary);
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.vault-switcher-create .btn-primary {
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 .sidebar-section {
@@ -152,6 +325,29 @@ body {
   font-size: 13px;
 }
 
+.create-mode-toggle {
+  display: flex;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.create-mode-toggle button {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  box-shadow: none;
+}
+
+.create-mode-toggle button.active {
+  background: var(--vdb-accent);
+  color: white;
+}
+
 .path-picker {
   display: flex;
   gap: 4px;
@@ -174,7 +370,7 @@ body {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: var(--vdb-accent);
   border: none;
   color: white;
   padding: 8px 12px;
@@ -268,7 +464,7 @@ body {
 }
 
 .view-toggle button.active {
-  background: var(--accent);
+  background: var(--vdb-accent);
   color: white;
 }
 
@@ -337,7 +533,7 @@ body {
 }
 
 .tree-file.selected {
-  background: var(--accent);
+  background: var(--vdb-accent);
   color: white;
 }
 
@@ -352,6 +548,29 @@ body {
   width: 100%;
   height: 100%;
   position: relative;
+}
+
+.graph-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  gap: 8px;
+}
+
+.graph-placeholder h2 {
+  font-size: 20px;
+  color: var(--text-primary);
+}
+
+.graph-placeholder-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--vdb-accent);
+  margin-top: 8px;
 }
 
 .graph-legend {
@@ -382,6 +601,29 @@ body {
 
 .legend-link {
   background: var(--accent-hover);
+}
+
+.legend-backlink {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--accent-hover) 0px,
+    var(--accent-hover) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+  height: 2px;
+  opacity: 0.5;
+}
+
+.legend-tag {
+  background: repeating-linear-gradient(
+    90deg,
+    #82b482 0px,
+    #82b482 6px,
+    transparent 6px,
+    transparent 9px
+  );
+  height: 2px;
 }
 
 .legend-semantic {
@@ -462,11 +704,11 @@ body {
 
 .search-bar input:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--vdb-accent);
 }
 
 .search-bar button {
-  background: var(--accent);
+  background: var(--vdb-accent);
   border: none;
   color: white;
   padding: 12px 20px;
@@ -504,7 +746,7 @@ body {
 
 .score {
   font-size: 12px;
-  color: var(--accent);
+  color: var(--vdb-accent);
   font-weight: 600;
 }
 
@@ -570,6 +812,12 @@ body {
 
 .note-view-toggle {
   max-width: 200px;
+}
+
+.note-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .note-body {
@@ -654,7 +902,7 @@ body {
 }
 
 .note-rendered-content blockquote {
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--vdb-accent);
   padding: 4px 16px;
   margin: 0 0 12px;
   color: var(--text-secondary);
@@ -719,7 +967,7 @@ body {
 
 .note-rendered-content input[type="checkbox"] {
   margin-right: 6px;
-  accent-color: var(--accent);
+  accent-color: var(--vdb-accent);
 }
 
 /* Chunks / Embedding View */
@@ -744,7 +992,7 @@ body {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--accent);
+  color: var(--vdb-accent);
   font-weight: 600;
 }
 
@@ -809,6 +1057,100 @@ body {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Save status indicator */
+.save-status {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.save-status--saving,
+.save-status--reembedding {
+  color: var(--accent-hover);
+}
+
+.save-status--saved {
+  color: var(--text-secondary);
+}
+
+.save-status--error {
+  color: var(--danger);
+}
+
+/* Inline note editor — simple textarea that looks like the note */
+.note-textarea {
+  width: 100%;
+  min-height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  color: var(--text-primary);
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+  font-size: 15px;
+  line-height: 1.75;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.note-textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Markdown Editor (CodeMirror) */
+.markdown-editor {
+  height: 100%;
+  overflow: hidden;
+}
+
+.markdown-editor .cm-editor {
+  height: 100%;
+  background: transparent;
+}
+
+.markdown-editor .cm-gutters {
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--bg-tertiary);
+}
+
+/* Context menu */
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: 6px;
+  padding: 4px;
+  min-width: 140px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  padding: 6px 12px;
+  font-size: 13px;
+  text-align: left;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.context-menu-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.context-menu-item--danger:hover {
+  background: var(--danger);
+  color: white;
 }
 
 @theme inline {
