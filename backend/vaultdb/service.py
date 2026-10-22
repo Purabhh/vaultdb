@@ -14,6 +14,7 @@ from .chunker import build_index_docs
 from .components import parse_component
 from .config import IndexOptions, VaultInfo, load_vaults, save_vaults
 from .embedder import EmbedderError
+from .graph import build_graph
 from .markdown import parse_markdown_file, read_note_text
 from .search import search
 from .store import Store
@@ -161,6 +162,10 @@ class VaultService:
 
     def get_file_tree(self, vault_name: str) -> dict:
         return _file_tree(self._root(vault_name))
+
+    def get_graph(self, vault_name: str) -> dict:
+        self._vault(vault_name)
+        return build_graph(self.store, vault_name)
 
     def get_note_detail(self, vault_name: str, note_path: str) -> dict:
         path = self.validate_path(vault_name, note_path)
