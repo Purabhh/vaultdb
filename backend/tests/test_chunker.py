@@ -63,5 +63,28 @@ def test_long_declaration_is_hard_split() -> None:
     assert "".join(parts).count("x();") == 5000
 
 
+def test_dense_code_is_capped_by_characters() -> None:
+    # 60 lines of ~300-char class strings: few lines, but far over the model's 2,048-token context
+    line = 'const c = "' + "px-4 py-2 rounded-md shadow-[0_0_6px_rgba(0,0,0,0.03)] " * 5 + '"'
+    parts = chunk_code("export function Dense() {\n" + "\n".join([line] * 60) + "\n}\n")
+    assert len(parts) > 1 and all(len(p) <= 4000 for p in parts)
+
+
+def test_single_huge_line_is_split() -> None:
+    parts = chunk_code("const x = '" + "a" * 10000 + "'")
+    assert all(len(p) <= 4000 for p in parts) and sum(len(p) for p in parts) >= 10000
+
+
+def test_card_stays_within_size_cap_for_long_usage_notes(tmp_path: Path) -> None:
+    p = tmp_path / "Big" / "big.md"
+    p.parent.mkdir()
+    p.write_text("# Big\n**Tags:** a\n\n## Code\n\n```tsx\nexport function Big() {}\n```\n\n## Usage Notes\n\n"
+                 + "word " * 3000, encoding="utf-8")
+    note = parse_markdown_file(p)
+    docs = build_index_docs(note, parse_component(note, tmp_path), IndexOptions())
+    assert all(len(d.text) <= 4000 for d in docs)
+    assert any(d.kind == "prose" for d in docs)  # the long notes are still indexed, as prose chunks
+
+
 def test_empty_note_has_no_docs(fixture_vault: Path) -> None:
     assert _docs(fixture_vault, "Notes/empty.md", IndexOptions()) == []
