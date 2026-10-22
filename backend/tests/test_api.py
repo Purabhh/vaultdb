@@ -1,4 +1,5 @@
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -103,3 +104,23 @@ def test_init_manager_imports_legacy_echidna(api, data_dir: Path, fixture_vault:
         {"vaults": {"Old": {"name": "Old", "source_path": str(fixture_vault), "note_count": 1}}}))
     api.invoke("init_manager", None)
     assert [v["name"] for v in api.invoke("list_vaults", None)] == ["Old"]
+    # imported vaults are indexed on startup, so graph and search work right away
+    assert api.invoke("get_graph", {"vaultName": "Old"})["nodes"]
+    assert api.invoke("search_vault", {"vaultName": "Old", "query": "glass button"})
+
+
+def test_init_manager_refreshes_notes_changed_while_closed(api, fixture_vault: Path) -> None:
+    api.invoke("create_vault", {"name": "V", "sourcePath": str(fixture_vault)})
+    (fixture_vault / "Notes" / "added-later.md").write_text("# Later\n\nabout quokkas\n", encoding="utf-8")
+    api.invoke("init_manager", None)
+    hits = api.invoke("search_vault", {"vaultName": "V", "query": "quokkas"})
+    assert hits and hits[0]["path"].endswith("added-later.md")
+
+
+def test_init_manager_survives_a_missing_vault_folder(api, tmp_path: Path, fixture_vault: Path) -> None:
+    gone = tmp_path / "gone"
+    shutil.copytree(fixture_vault, gone)
+    api.invoke("create_vault", {"name": "Gone", "sourcePath": str(gone)})
+    shutil.rmtree(gone)
+    api.invoke("init_manager", None)  # does not raise
+    assert [v["name"] for v in api.invoke("list_vaults", None)] == ["Gone"]

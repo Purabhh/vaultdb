@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { invoke, listen, type UnlistenFn } from "@/lib/backend";
 import { Sidebar } from "./components/Sidebar";
 import { GraphView } from "./components/GraphView";
 import { SearchPanel } from "./components/SearchPanel";
@@ -23,11 +22,18 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   const unlistenRef = useRef<UnlistenFn | null>(null);
+  // The watcher listener is registered once, so it reads the current state and callbacks
+  // through this ref (assigned every render) instead of the first render's closures.
+  const latestRef = useRef<{
+    selectedNotePath: string | null;
+    refreshFileTree: () => Promise<void>;
+    handleSelectNote: (path: string) => Promise<void>;
+  } | null>(null);
 
   useEffect(() => {
     initApp();
 
-    // Listen for file changes from the Rust watcher
+    // Listen for file changes from the backend watcher
     let cancelled = false;
     listen<{ vault_name: string; path: string; kind: string }>(
       "vault-file-change",
@@ -37,15 +43,16 @@ function App() {
         console.log(`[watcher] ${kind}: ${path}`);
 
         // Refresh file tree on any change
-        refreshFileTree();
+        const latest = latestRef.current;
+        latest?.refreshFileTree();
 
         // If the currently viewed note was modified externally, reload it
-        if (kind === "modify" && path === selectedNotePath) {
-          handleSelectNote(path);
+        if (kind === "modify" && path === latest?.selectedNotePath) {
+          latest.handleSelectNote(path);
         }
 
         // If deleted and it's the current note, clear it
-        if (kind === "delete" && path === selectedNotePath) {
+        if (kind === "delete" && path === latest?.selectedNotePath) {
           setNoteDetail(null);
           setSelectedNotePath(null);
           setCurrentView("graph");
@@ -294,6 +301,8 @@ function App() {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [activeVault, fileTree, handleCreateNote]);
+
+  latestRef.current = { selectedNotePath, refreshFileTree, handleSelectNote };
 
   return (
     <div className="app">

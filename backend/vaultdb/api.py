@@ -72,8 +72,14 @@ class Api:
 
     # --- handlers --------------------------------------------------------------------------
     def _init_manager(self) -> None:
+        """Import the old echidna vault list once, then bring every vault's index up to date."""
         if import_legacy_echidna():
             self._service.vaults = load_vaults()
+        for name in list(self._service.vaults):
+            try:
+                self._service.refresh_vault(name)
+            except VaultError:
+                pass  # e.g. folder moved; the vault stays listed and its commands report the error
 
     def _delete_vault(self, name: str) -> None:
         if self._watcher is not None:

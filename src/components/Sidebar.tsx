@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open } from "@/lib/backend";
 import { VaultInfo, FileTreeNode } from "../types";
 import { FileTree } from "./FileTree";
 import { ChevronDown } from "lucide-react";
