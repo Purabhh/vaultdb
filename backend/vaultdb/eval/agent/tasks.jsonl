@@ -1,0 +1,12 @@
+{"id": "glass-cta", "prompt": "A landing page hero with a bold headline and a glassy, frosted call-to-action button.", "expected": ["Buttons/liquid-glass-button.md"]}
+{"id": "team-card", "prompt": "A team member card that shows the person's photo and reveals their social links when you hover over it.", "expected": ["Cards/animated-profile-card.md"]}
+{"id": "card-stack", "prompt": "A collection of service cards the user can drag through, with a toggle to switch between stack, grid and list layouts.", "expected": ["Cards/morphing-card-stack.md"]}
+{"id": "command-palette", "prompt": "A command palette style search bar that suggests actions as you type.", "expected": ["Forms/action-search-bar.md"]}
+{"id": "ai-chat-input", "prompt": "A chat input for an AI assistant with a model picker and an attach-file button.", "expected": ["Forms/animated-ai-input.md"]}
+{"id": "app-dock", "prompt": "A macOS-style dock of app icons that grow as the cursor gets close.", "expected": ["Navigation/animated-dock.md"]}
+{"id": "fab-menu", "prompt": "A floating round button in the bottom-right corner that expands into a few action buttons.", "expected": ["Navigation/floating-action-menu.md"]}
+{"id": "sliding-navbar", "prompt": "A top navigation bar where a pill highlight slides under whichever link you hover.", "expected": ["Navigation/nav-header.md"]}
+{"id": "radial-menu", "prompt": "A circular right-click menu with icon slices arranged around the cursor.", "expected": ["Navigation/radial-menu.md"]}
+{"id": "settings-toggle", "prompt": "A settings row with a springy, Material-style toggle switch.", "expected": ["Forms/material-design-3-switch.md"]}
+{"id": "fintech-hero", "prompt": "A hero section for a payments startup with floating credit cards that tilt with the mouse.", "expected": ["Heroes/credit-card-hero.md"]}
+{"id": "morphing-headline", "prompt": "A hero headline whose words melt into each other in a loop.", "expected": ["Text/gooey-text-morphing.md"]}
