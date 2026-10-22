@@ -1,0 +1,70 @@
+{"q": "glowing AI create button with flickering letters", "gold": ["Buttons/animated-generate-button.md"], "split": "dev"}
+{"q": "sparkly call to action for starting an AI generation", "gold": ["Buttons/animated-generate-button.md"], "split": "heldout"}
+{"q": "small arrow button to return to the previous page", "gold": ["Buttons/back-button.md"], "split": "dev"}
+{"q": "set of button styles in different sizes, shapes and a loading state", "gold": ["Buttons/button-variants.md"], "split": "heldout"}
+{"q": "button that spawns colorful circles under the cursor when hovered", "gold": ["Buttons/hover-button.md"], "split": "dev"}
+{"q": "translucent button with gradient bubbles appearing at the pointer", "gold": ["Buttons/hover-button.md"], "split": "heldout"}
+{"q": "frosted glass button with a distortion effect", "gold": ["Buttons/liquid-glass-button.md"], "split": "dev"}
+{"q": "liquid looking translucent button using an svg filter", "gold": ["Buttons/liquid-glass-button.md"], "split": "heldout"}
+{"q": "video preview thumbnail that opens a youtube player in a popup", "gold": ["Buttons/thumbnail-button-video-player.md"], "split": "dev"}
+{"q": "click a thumbnail to watch a video in a modal", "gold": ["Buttons/thumbnail-button-video-player.md"], "split": "heldout"}
+{"q": "team member card that reveals social links on hover", "gold": ["Cards/animated-profile-card.md"], "split": "dev"}
+{"q": "person card with a gsap reveal animation", "gold": ["Cards/animated-profile-card.md"], "split": "heldout"}
+{"q": "colorful gradient content card with a status badge and link", "gold": ["Cards/gradient-card.md"], "split": "dev"}
+{"q": "stack of cards you can drag and switch to a grid or list", "gold": ["Cards/morphing-card-stack.md"], "split": "heldout"}
+{"q": "swipeable deck of cards", "gold": ["Cards/morphing-card-stack.md"], "split": "dev"}
+{"q": "profile card with follower counts and a follow button", "gold": ["Cards/profile-card-social.md"], "split": "heldout"}
+{"q": "rotating chips that cycle through product features", "gold": ["Features/bucket.md"], "split": "dev"}
+{"q": "list of features that animate in one after another", "gold": ["Features/feature-highlight.md"], "split": "heldout"}
+{"q": "raycast style command palette", "gold": ["Forms/action-search-bar.md"], "split": "dev"}
+{"q": "search box that suggests actions as you type", "gold": ["Forms/action-search-bar.md"], "split": "heldout"}
+{"q": "chat prompt box with a model picker and file attach", "gold": ["Forms/animated-ai-input.md"], "split": "dev"}
+{"q": "auto growing textarea for talking to an LLM", "gold": ["Forms/animated-ai-input.md"], "split": "heldout"}
+{"q": "checkbox list where the item nearest the cursor highlights", "gold": ["Forms/checkbox-group.md"], "split": "dev"}
+{"q": "searchable select dropdown that filters options", "gold": ["Forms/combobox.md"], "split": "heldout"}
+{"q": "get in touch page with info on one side and a form on the other", "gold": ["Forms/contact-form.md"], "split": "dev"}
+{"q": "text field where you press enter to add removable chips", "gold": ["Forms/input-with-tags.md"], "split": "heldout"}
+{"q": "android style toggle with springy motion and haptic sound", "gold": ["Forms/material-design-3-switch.md"], "split": "dev"}
+{"q": "multi step registration flow with confetti at the end", "gold": ["Forms/sign-up-auth.md"], "split": "heldout"}
+{"q": "onboarding sign up with glassy panels", "gold": ["Forms/sign-up-auth.md"], "split": "dev"}
+{"q": "fintech landing header with floating bank cards that tilt with the mouse", "gold": ["Heroes/credit-card-hero.md"], "split": "heldout"}
+{"q": "full screen landing section with parallax images revealed on scroll", "gold": ["Heroes/smooth-scroll-hero.md"], "split": "dev"}
+{"q": "hero with an interactive 3d model next to the headline", "gold": ["Heroes/spline-scene.md"], "split": "heldout"}
+{"q": "placeholder grid shown while results load", "gold": ["Layouts/animated-loading-skeleton.md"], "split": "dev"}
+{"q": "page footer with links, social icons and copyright", "gold": ["Layouts/footer-simple.md"], "split": "heldout"}
+{"q": "expand and collapse section for faq answers", "gold": ["Modals/collapsible-four.md"], "split": "dev"}
+{"q": "button that morphs into a small note form", "gold": ["Modals/morphing-popover.md"], "split": "heldout"}
+{"q": "share menu with copy link and social buttons", "gold": ["Modals/popover-share.md"], "split": "dev"}
+{"q": "login modal window", "gold": ["Modals/sign-in-dialog.md"], "split": "heldout"}
+{"q": "notification popups including a download progress toast", "gold": ["Modals/toast-system.md"], "split": "dev"}
+{"q": "mac style dock where icons grow near the cursor", "gold": ["Navigation/animated-dock.md"], "split": "heldout"}
+{"q": "app launcher bar with magnifying icons", "gold": ["Navigation/animated-dock.md"], "split": "dev"}
+{"q": "round plus button in the corner that opens more actions", "gold": ["Navigation/floating-action-menu.md"], "split": "heldout"}
+{"q": "dropdown menu with keyboard shortcuts, toggles and radio options", "gold": ["Navigation/menu-with-switch.md"], "split": "dev"}
+{"q": "carousel pagination dots where the active one becomes a pill", "gold": ["Navigation/morphing-page-dots.md"], "split": "heldout"}
+{"q": "top navbar with a highlight pill that slides under hovered links", "gold": ["Navigation/nav-header.md"], "split": "dev"}
+{"q": "navigation bar with a sliding hover indicator", "gold": ["Navigation/nav-header.md"], "split": "heldout"}
+{"q": "circular right click menu with pie slices", "gold": ["Navigation/radial-menu.md"], "split": "dev"}
+{"q": "floating rich text formatting bar with bold and italic buttons", "gold": ["Navigation/toolbar.md"], "split": "heldout"}
+{"q": "page numbers you can scroll through with the mouse wheel", "gold": ["Navigation/wheel-pagination.md"], "split": "dev"}
+{"q": "headline words that blend into each other with a liquid effect", "gold": ["Text/gooey-text-morphing.md"], "split": "heldout"}
+{"q": "animated text that melts between phrases", "gold": ["Text/gooey-text-morphing.md"], "split": "dev"}
+{"q": "pill toggle with a satisfying spring", "gold": ["Forms/material-design-3-switch.md"], "split": "heldout"}
+{"q": "loading shimmer cards", "gold": ["Layouts/animated-loading-skeleton.md"], "split": "dev"}
+{"q": "animated chips input for skills", "gold": ["Forms/input-with-tags.md"], "split": "heldout"}
+{"q": "modal sign in form with email and password", "gold": ["Modals/sign-in-dialog.md", "Forms/sign-up-auth.md"], "split": "dev"}
+{"q": "copy url to clipboard with social sharing", "gold": ["Modals/popover-share.md"], "split": "heldout"}
+{"q": "faq accordion", "gold": ["Modals/collapsible-four.md"], "split": "dev"}
+{"q": "3d spinning feature badges", "gold": ["Features/bucket.md"], "split": "heldout"}
+{"q": "dark hero with a spotlight and a 3d robot", "gold": ["Heroes/spline-scene.md"], "split": "dev"}
+{"q": "bank card hero for a payments startup", "gold": ["Heroes/credit-card-hero.md"], "split": "heldout"}
+{"q": "footer with brand logo and link columns", "gold": ["Layouts/footer-simple.md"], "split": "dev"}
+{"q": "toast stack with close button", "gold": ["Modals/toast-system.md"], "split": "heldout"}
+{"q": "dot indicators for a slider", "gold": ["Navigation/morphing-page-dots.md"], "split": "dev"}
+{"q": "contact us form in two columns", "gold": ["Forms/contact-form.md"], "split": "heldout"}
+{"q": "follow card with stats and an experience bar", "gold": ["Cards/profile-card-social.md"], "split": "dev"}
+{"q": "card with an orange to pink gradient and a call to action", "gold": ["Cards/gradient-card.md"], "split": "heldout"}
+{"q": "shadcn style buttons with outline, ghost and destructive variants", "gold": ["Buttons/button-variants.md"], "split": "dev"}
+{"q": "go back link with an arrow icon", "gold": ["Buttons/back-button.md"], "split": "heldout"}
+{"q": "pie menu", "gold": ["Navigation/radial-menu.md"], "split": "dev"}
+{"q": "editor formatting toolbar with tooltips", "gold": ["Navigation/toolbar.md"], "split": "heldout"}
