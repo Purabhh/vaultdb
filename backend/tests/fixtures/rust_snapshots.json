@@ -1,0 +1,151 @@
+{
+  "Buttons/hover-button.md": {
+    "chunks": [
+      "Hover Button Source: 21st.dev / serafim Tags: button, hover, gradient-circles, glassmorphism Dependencies: tailwind Preview Code Usage Notes Glassmorphism button that spawns gradient circles at cursor position on hover. No external animation library needed — pure React + CSS. Great for hero CTAs, premium buttons."
+    ],
+    "frontmatter": {},
+    "links": [],
+    "tags": [
+      "3a5bbf",
+      "a0d9f8"
+    ],
+    "title": "hover-button"
+  },
+  "Buttons/liquid-glass-button.md": {
+    "chunks": [
+      "Liquid Glass Button Source: 21st.dev / aliimam Tags: button, glass, frosted, svg-filter, animated Dependencies: @radix-ui/react-slot, class-variance-authority, tailwind Preview Code Usage Notes Frosted glass button with SVG displacement filter for liquid distortion. Multi-layered shadow system. Supports dark mode. Great for hero CTAs, premium UI elements."
+    ],
+    "frontmatter": {},
+    "links": [],
+    "tags": [],
+    "title": "liquid-glass-button"
+  },
+  "Cards/animated-profile-card.md": {
+    "chunks": [
+      "Animated Profile Card Source: 21st.dev / aghasisahakyan1 Tags: cards, profile, animated, gsap, reveal, hover Dependencies: gsap, @gsap/react, next-themes, @radix-ui/react-avatar, tailwind Preview Code Usage Notes Perfect for tutor/team member profiles. Hover reveals an accented overlay with avatar and social links. Uses GSAP clip-path animation for a smooth circular reveal. Requires shadcn Card and Avatar components. Supports custom accent colors and dual theme modes."
+    ],
+    "frontmatter": {},
+    "links": [],
+    "tags": [],
+    "title": "animated-profile-card"
+  },
+  "Cards/morphing-card-stack.md": {
+    "chunks": [
+      "Morphing Card Stack Source: 21st.dev / koustubhayadiyala36 Tags: cards, stack, grid, list, animated, draggable Dependencies: framer-motion, lucide-react, tailwind Preview Code Usage Notes Great for showing collections of items (tutors, sessions, services) where users need to browse through them. Three layout modes give flexibility — stack for visual impact, grid for overview, list for scanning. Supports drag-to-navigate on stack mode."
+    ],
+    "frontmatter": {},
+    "links": [],
+    "tags": [],
+    "title": "morphing-card-stack"
+  },
+  "Components-MOC.md": {
+    "chunks": [
+      "Components MOC UI component library sourced from 21st.dev , curated by Purabh. When designing frontends, remix and adapt these — never invent UI from scratch. Categories | Folder | Count | What's in it | |--------|-------|-------------| | | 3 | Hero sections, landing headers | | | 9 | Navbars, menus, dock, pagination, FAB | | | 4 | Profile, content, gradient cards, stacks | | | 7 | All button variants | | | 2 | Feature showcases, highlights | | | 9 | Inputs, auth, search, contact, AI inputs, checkboxes | | | 5 | Dialogs, popovers, toasts, collapsibles | | | 3 | Footers, skeletons | | | 1 | Animated text, morphing headings | | | 0 | (empty) | | | 0 | (empty) | | | 0 | (empty) | Components (41 total) Heroes spline-scene.md — Interactive 3D Spline hero with spotlight credit-card-hero.md — 3D mouse-tracking hero with floating cards smooth-scroll-hero.md — Parallax scroll hero with image reveals Navigation toolbar.md — Text editor toolbar with formatting toggles menu-with-switch.md — Dropdown menu with switch/checkbox/radio radial-menu.md — Circular right-click context menu nav-header.md — Pill navbar with sliding cursor animation floating-action-menu.md — Fixed FAB with expanding options morphing-page-dots.md — Dot pagination with pill morphing wheel-pagination.md — Numbered pagination with scroll wheel animated-dock.md — macOS-style dock with hover-grow icons Cards morphing-card-stack.md — Draggable card stack with grid/list/stack animated-profile-card.md — GSAP reveal animation profile card profile-card-social.md — Social profile with animated counters gradient-card.md — Gradient card with badge, CTA, hover lift Buttons animated-generate-button.md — AI generate with glow/flicker thumbnail-button-video-player.md — Video thumbnail modal player liquid-glass-button.md — Frosted glass with SVG displacement button-variants.md — Origin UI + Shugar button systems back-button.md — Animated back navigation hover-button.md — Glassmorphism with cursor gradient circles Features bucket.md — Rotating feature chips with 3D bucket feature-highlight.md — Staggered animated feature list with icon Forms material-design-3-switch.md — M3 toggle with haptic audio input-with-tags.md — Tag input with animated add/remove animated-ai-input.md — AI chat input with model selector combobox.md — Searchable dropdown compound pattern sign-up-auth.md — Multi-step auth with glassmorphism action-search-bar.md — Raycast-style command palette search contact-form.md — Two-column contact page with form checkbox-group.md — Proximity-hover checkbox group with merge animation Modals collapsible-four.md — Radix collapsible with toggle sign-in-dialog.md — Enhanced shadcn dialog for auth morphing-popover.md — Layout-animated morphing popover toast-system.md — Basic toast + download progress toast popover-share.md — Share popover with social + clipboard copy Text gooey-text-morphing.md — Fluid gooey word cycling with SVG filter Layouts animated-loading-skeleton.md — Grid skeleton with roaming search footer-simple.md — Simple centered + structured footer variants"
+    ],
+    "frontmatter": {},
+    "links": [],
+    "tags": [],
+    "title": "Components-MOC"
+  },
+  "Forms/action-search-bar.md": {
+    "chunks": [
+      "Action Search Bar Source: 21st.dev / kokonutd Tags: search, command-palette, raycast, actions, animated Dependencies: framer-motion, lucide-react, shadcn/input, tailwind Preview Code Usage Notes Raycast-inspired command palette search bar with debounced filtering, animated icon swap (search/send), staggered results. Great for AI agent UIs, dashboards, command interfaces."
+    ],
+    "frontmatter": {},
+    "links": [],
+    "tags": [],
+    "title": "action-search-bar"
+  },
+  "Forms/animated-ai-input.md": {
+    "chunks": [
+      "Animated AI Input Source: 21st.dev / kokonutd Tags: input, ai, chat, model-selector, textarea, animated Dependencies: framer-motion, lucide-react, shadcn (textarea, button, dropdown-menu), tailwind Preview Code Usage Notes AI chat input with auto-resizing textarea, model selector dropdown with animated transitions, file attachment, and send button. Perfect for AI agent interfaces, chatbot UIs."
+    ],
+    "frontmatter": {},
+    "links": [],
+    "tags": [],
+    "title": "animated-ai-input"
+  },
+  "Heroes/credit-card-hero.md": {
+    "chunks": [
+      "Credit Card Hero Source: 21st.dev / ruixenui Tags: hero, 3d, parallax, mouse-tracking, fintech Dependencies: framer-motion, tailwind Preview Code Usage Notes 3D mouse-tracking hero with floating credit card overlays. Replace card images with your own. Great for fintech, SaaS, or any premium landing page. The tilt effect follows cursor position."
+    ],
+    "frontmatter": {},
+    "links": [],
+    "tags": [],
+    "title": "credit-card-hero"
+  },
+  "Modals/collapsible-four.md": {
+    "chunks": [
+      "Collapsible Four Source: 21st.dev / ShadcnStudio Tags: collapsible, expandable, toggle, radix Dependencies: @radix-ui/react-collapsible, lucide-react, tailwind Preview Code Usage Notes Good for showing/hiding session details, tutor bios, FAQ items. Lightweight Radix primitive — compose with any content inside. Pair with cards or list items for expandable rows."
+    ],
+    "frontmatter": {},
+    "links": [],
+    "tags": [],
+    "title": "collapsible-four"
+  },
+  "Navigation/animated-dock.md": {
+    "chunks": [
+      "Animated Dock Source: 21st.dev / hextaui (Preet Suthar) Tags: dock, navigation, animated, macOS, hover-grow Dependencies: motion/react, clsx, tailwind-merge, next/link, tailwind Preview Code Usage Usage Notes macOS-style dock where icons grow as cursor approaches. Uses spring physics for smooth scaling. Pass any icons/links as items. Great for app navigation, dashboard sidebars, bottom nav bars."
+    ],
+    "frontmatter": {},
+    "links": [],
+    "tags": [],
+    "title": "animated-dock"
+  },
+  "Navigation/floating-action-menu.md": {
+    "chunks": [
+      "Floating Action Menu Source: 21st.dev / chetanverma16 Tags: fab, floating, menu, animated, blur Dependencies: framer-motion, lucide-react, shadcn/button, tailwind Preview Code Usage Notes Fixed bottom-right FAB that expands into staggered action buttons. Plus icon rotates to X. Blur effect on open/close. Good for mobile-first UIs, quick actions, dashboards."
+    ],
+    "frontmatter": {},
+    "links": [],
+    "tags": [],
+    "title": "floating-action-menu"
+  },
+  "Notes/alpha.md": {
+    "chunks": [
+      "Alpha Alpha is about layout ideas. See [ [ beta ] ] and the alias link [ [ gamma|Gamma alias ] ] . Something worth trying later #idea Closing thoughts on spacing and rhythm."
+    ],
+    "frontmatter": {
+      "status": "draft",
+      "tags": "[design, ui]",
+      "title": "Alpha"
+    },
+    "links": [
+      "beta",
+      "gamma"
+    ],
+    "tags": [
+      "design",
+      "idea",
+      "ui"
+    ],
+    "title": "alpha"
+  },
+  "Notes/beta.md": {
+    "chunks": [
+      "Beta Beta follows up on [ [ alpha ] ] with notes about colour and contrast."
+    ],
+    "frontmatter": {},
+    "links": [
+      "alpha"
+    ],
+    "tags": [],
+    "title": "beta"
+  },
+  "Notes/empty.md": {
+    "chunks": [],
+    "frontmatter": {},
+    "links": [],
+    "tags": [],
+    "title": "empty"
+  },
+  "Notes/gamma.md": {
+    "chunks": [
+      "﻿# Gamma Gamma has no links, just a short note about typography."
+    ],
+    "frontmatter": {},
+    "links": [],
+    "tags": [],
+    "title": "gamma"
+  }
+}
