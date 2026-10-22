@@ -65,6 +65,25 @@ def fake_embedder() -> FakeEmbedder:
     return FakeEmbedder()
 
 
+def index_fixture(store, embedder, vault_root: Path, opts=None, vault: str = "Components") -> int:
+    """Index every note under vault_root straight into `store` (no service layer). Returns note count."""
+    from vaultdb.chunker import build_index_docs
+    from vaultdb.components import parse_component
+    from vaultdb.config import IndexOptions
+    from vaultdb.markdown import parse_markdown_file
+
+    opts = opts or IndexOptions()
+    count = 0
+    for path in sorted(vault_root.rglob("*.md")):
+        note = parse_markdown_file(path)
+        comp = parse_component(note, vault_root)
+        docs = build_index_docs(note, comp, opts)
+        store.upsert_note(vault, note, comp, path.stat().st_mtime, docs,
+                          embedder.embed_documents([d.text for d in docs]))
+        count += 1
+    return count
+
+
 _ollama_up: bool | None = None
 
 
