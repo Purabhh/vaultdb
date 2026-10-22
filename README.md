@@ -111,7 +111,10 @@ Unit tests cover parsing (checked against snapshots of the original Rust parser)
 
 ## Platform support
 
-Tested on macOS. Windows support is in progress.
+- **macOS:** fully tested (app, MCP server, all tests including the Ollama ones).
+- **Windows:** the packaged app (`VaultDB.exe`) builds and opens, the UI and the Python bridge work, and the test suite passes apart from the tests that need Ollama. Indexing a vault on Windows has not been tested yet.
+
+On Windows, if `uv sync` fails while downloading Python, point it at an installed Python 3.11+: `$env:UV_PYTHON = "C:\path\to\python.exe"`.
 
 ## Stack
 
