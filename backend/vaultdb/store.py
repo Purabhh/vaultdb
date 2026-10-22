@@ -9,6 +9,7 @@ import json
 import re
 import sqlite3
 import threading
+import time
 from pathlib import Path
 
 import numpy as np
@@ -79,12 +80,33 @@ class Store:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(self.path, timeout=5, check_same_thread=False, isolation_level=None)
         self._lock = threading.RLock()
-        self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA busy_timeout=5000")
+        # Switching a fresh file to WAL, and creating the schema, can fail at once with "database
+        # is locked" when another connection (the MCP's refresh thread, the app) is doing the same;
+        # the busy timeout does not cover the WAL switch. Retry both briefly.
+        self._retry_locked(self._enable_wal)
         self.conn.execute("PRAGMA foreign_keys=ON")
         self.conn.execute("PRAGMA synchronous=NORMAL")
         with self._lock:
-            self.conn.executescript(_SCHEMA)
+            self._retry_locked(lambda: self.conn.executescript(f"BEGIN IMMEDIATE;\n{_SCHEMA}\nCOMMIT;"))
+
+    def _enable_wal(self) -> None:
+        if self.conn.execute("PRAGMA journal_mode").fetchone()[0].lower() != "wal":
+            self.conn.execute("PRAGMA journal_mode=WAL")
+
+    def _retry_locked(self, fn, attempts: int = 100, delay: float = 0.05) -> None:
+        for attempt in range(attempts):
+            try:
+                fn()
+                return
+            except sqlite3.OperationalError as e:
+                if "locked" not in str(e) and "busy" not in str(e):
+                    raise
+                if self.conn.in_transaction:
+                    self.conn.execute("ROLLBACK")
+                if attempt == attempts - 1:
+                    raise
+                time.sleep(delay)
 
     # --- writes ------------------------------------------------------------------------
     def upsert_note(self, vault: str, note: ParsedNote, component: ComponentInfo | None,

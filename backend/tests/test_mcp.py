@@ -17,7 +17,6 @@ from vaultdb.service import VaultService
 from vaultdb.store import Store
 from vaultdb.config import db_path
 
-pytestmark = pytest.mark.ollama
 
 INSTRUCTIONS = ("Before building or styling UI, search the component library and adapt what you find "
                 "instead of inventing components.")
@@ -64,6 +63,7 @@ def _call(env: dict, fn):
     return anyio.run(run)
 
 
+@pytest.mark.ollama
 def test_instructions_and_four_tools(env) -> None:
     async def fn(s, init):
         return init, await s.list_tools()
@@ -76,6 +76,7 @@ def test_instructions_and_four_tools(env) -> None:
     assert {"query", "limit", "category"} <= set(props)
 
 
+@pytest.mark.ollama
 def test_search_components_finds_glass_button(env) -> None:
     async def fn(s, init):
         return await s.call_tool("search_components", {"query": "frosted glass button"})
@@ -86,6 +87,7 @@ def test_search_components_finds_glass_button(env) -> None:
     assert {"name", "category", "tags", "dependencies", "score", "why", "path", "vault"} <= set(top)
 
 
+@pytest.mark.ollama
 def test_search_components_category_filter(env) -> None:
     async def fn(s, init):
         return await s.call_tool("search_components", {"query": "animated", "category": "navigation"})
@@ -93,6 +95,7 @@ def test_search_components_category_filter(env) -> None:
     assert res and all(r["category"] == "Navigation" for r in res)
 
 
+@pytest.mark.ollama
 def test_get_component_returns_identical_code(env) -> None:
     async def fn(s, init):
         return await s.call_tool("get_component", {"path": "Buttons/liquid-glass-button.md"})
@@ -100,12 +103,14 @@ def test_get_component_returns_identical_code(env) -> None:
     assert text == (Path(env["VAULT"]) / "Buttons/liquid-glass-button.md").read_text(encoding="utf-8")
 
 
+@pytest.mark.ollama
 def test_get_component_by_name(env) -> None:
     async def fn(s, init):
         return await s.call_tool("get_component", {"name": "liquid glass button"})
     assert "liquidbuttonVariants" in _text(_call(env, fn))
 
 
+@pytest.mark.ollama
 def test_unknown_component_suggests_close_names(env) -> None:
     async def fn(s, init):
         return await s.call_tool("get_component", {"name": "Liquid Glas Buton"})
@@ -113,6 +118,7 @@ def test_unknown_component_suggests_close_names(env) -> None:
     assert _is_error(res) and "Liquid Glass Button" in _text(res)
 
 
+@pytest.mark.ollama
 def test_large_note_is_split_with_marker(env) -> None:
     async def fn(s, init):
         parts = [await s.call_tool("get_component", {"path": "Buttons/huge-button.md", "part": 1})]
@@ -127,6 +133,7 @@ def test_large_note_is_split_with_marker(env) -> None:
     assert body == (Path(env["VAULT"]) / "Buttons/huge-button.md").read_text(encoding="utf-8")
 
 
+@pytest.mark.ollama
 def test_list_components(env) -> None:
     async def fn(s, init):
         return await s.call_tool("list_components", {"category": "Cards"})
@@ -134,6 +141,7 @@ def test_list_components(env) -> None:
     assert names == {"Animated Profile Card", "Morphing Card Stack"}
 
 
+@pytest.mark.ollama
 def test_search_notes_covers_plain_notes(env) -> None:
     async def fn(s, init):
         return await s.call_tool("search_notes", {"query": "layout ideas grid"})
@@ -142,6 +150,7 @@ def test_search_notes_covers_plain_notes(env) -> None:
     assert {"title", "path", "vault", "snippet", "score"} <= set(res[0])
 
 
+@pytest.mark.ollama
 def test_unknown_vault_is_tool_error(env) -> None:
     async def fn(s, init):
         return await s.call_tool("search_notes", {"query": "x", "vault": "Nope"})
@@ -149,6 +158,7 @@ def test_unknown_vault_is_tool_error(env) -> None:
     assert _is_error(res) and "Nope" in _text(res)
 
 
+@pytest.mark.ollama
 def test_missing_source_folder_is_tool_error_not_crash(env) -> None:
     shutil.rmtree(env["VAULT"])
 
@@ -161,6 +171,7 @@ def test_missing_source_folder_is_tool_error_not_crash(env) -> None:
     assert len(tools.tools) == 4
 
 
+@pytest.mark.ollama
 def test_startup_imports_legacy_echidna_vaults(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(Path(__file__).parent / "fixtures" / "vault", vault)
@@ -176,6 +187,7 @@ def test_startup_imports_legacy_echidna_vaults(tmp_path: Path) -> None:
     assert names == {"Animated Profile Card", "Morphing Card Stack"}
 
 
+@pytest.mark.ollama
 def test_startup_refresh_sees_edit_made_before_launch(env) -> None:
     note = Path(env["VAULT"]) / "Notes/beta.md"
     note.write_text("# Beta\n\nThis note is now about narwhals.\n", encoding="utf-8")
@@ -185,3 +197,38 @@ def test_startup_refresh_sees_edit_made_before_launch(env) -> None:
         return await s.call_tool("search_notes", {"query": "narwhals", "limit": 3})
     res = _json(_call(env, fn))["results"]
     assert res and res[0]["path"].endswith("beta.md") and "narwhals" in res[0]["snippet"]
+
+
+@pytest.mark.ollama
+def test_search_skips_vaults_whose_folder_is_gone(env) -> None:
+    shutil.rmtree(env["VAULT"])
+
+    async def fn(s, init):
+        return (await s.call_tool("search_components", {"query": "glass button"}),
+                await s.call_tool("search_notes", {"query": "glass", "vault": "Components"}))
+    comps, notes = _call(env, fn)
+    assert _is_error(comps) and "source folder not found" in _text(comps)
+    assert _is_error(notes) and "source folder not found" in _text(notes)
+
+
+@pytest.mark.ollama
+def test_handshake_does_not_wait_for_indexing(env) -> None:
+    # A changed note forces a re-index at startup; point Ollama at an address that never answers.
+    note = Path(env["VAULT"]) / "Notes/beta.md"
+    note.write_text("# Beta\n\nchanged\n", encoding="utf-8")
+    os.utime(note, (note.stat().st_atime, note.stat().st_mtime + 10))
+    slow = dict(env, VAULTDB_OLLAMA_URL="http://10.255.255.1:11434")
+    import time as _time
+
+    async def fn(s, init):
+        return await s.list_tools()
+    t = _time.monotonic()
+    tools = _call(slow, fn)
+    assert len(tools.tools) == 4 and _time.monotonic() - t < 20
+
+
+def test_read_component_text_keeps_crlf(tmp_path: Path) -> None:
+    from vaultdb.mcp_server import read_component_text
+    p = tmp_path / "c.md"
+    p.write_bytes(b"# C\r\n\r\n## Code\r\n")
+    assert read_component_text(p) == "# C\r\n\r\n## Code\r\n"

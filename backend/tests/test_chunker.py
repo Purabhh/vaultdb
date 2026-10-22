@@ -88,3 +88,15 @@ def test_card_stays_within_size_cap_for_long_usage_notes(tmp_path: Path) -> None
 
 def test_empty_note_has_no_docs(fixture_vault: Path) -> None:
     assert _docs(fixture_vault, "Notes/empty.md", IndexOptions()) == []
+
+
+def test_prose_chunks_are_capped_by_characters() -> None:
+    # no spaces at all (e.g. a long URL or CJK text) must still be split
+    chunks = chunk_prose("x" * 20000)
+    assert len(chunks) > 1 and all(len(c) <= 3000 for c in chunks)
+
+
+def test_code_and_cards_fit_a_token_safe_cap(fixture_vault: Path) -> None:
+    line = 'const p = "M10 20 L30 40 C50 60 70 80 90 100 Z M1 2 L3 4" ' * 3
+    parts = chunk_code("\n".join([line] * 80))
+    assert all(len(p) <= 3000 for p in parts)

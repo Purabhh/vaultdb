@@ -13,7 +13,7 @@ import numpy as np
 from .chunker import build_index_docs
 from .components import parse_component
 from .config import IndexOptions, VaultInfo, load_vaults, save_vaults
-from .embedder import EmbedderError
+from .embedder import EmbedderError, EmbedderInputError
 from .graph import build_graph
 from .markdown import parse_markdown_file, read_note_text
 from .search import search
@@ -70,15 +70,33 @@ class VaultService:
             raise VaultError("Path traversal denied: path is outside the vault")
         return Path(note_path)
 
-    def _save(self) -> None:
-        save_vaults(self.vaults)
+    def reload_vaults(self) -> None:
+        """Re-read the vault list written by another process (the app or the MCP server)."""
+        self.vaults = load_vaults()
+
+    def _update_config(self, name: str, info: VaultInfo | None) -> None:
+        """Read-modify-write one vault's entry (None removes it), keeping other processes' changes."""
+        on_disk = load_vaults()
+        if info is None:
+            on_disk.pop(name, None)
+        else:
+            on_disk[name] = info
+        save_vaults(on_disk)
+        self.vaults = on_disk
+
+    def _write(self, path: Path, content: str) -> None:
+        path.write_bytes(content.encode("utf-8"))  # bytes, so line endings are never rewritten
 
     def _index_file(self, vault: str, path: Path) -> None:
+        mtime = path.stat().st_mtime  # before reading, so an edit made during indexing is caught next time
         note = parse_markdown_file(path)
         comp = parse_component(note, Path(self.vaults[vault].source_path))
         docs = build_index_docs(note, comp, self.opts)
-        vectors = self.embedder.embed_documents([d.text for d in docs])
-        self.store.upsert_note(vault, note, comp, path.stat().st_mtime, docs, vectors)
+        try:
+            vectors = self.embedder.embed_documents([d.text for d in docs])
+        except EmbedderInputError as e:
+            raise EmbedderInputError(f"{path}: {e}") from e
+        self.store.upsert_note(vault, note, comp, mtime, docs, vectors)
 
     # --- vaults ------------------------------------------------------------------------
     def list_vaults(self) -> list[dict]:
@@ -91,21 +109,25 @@ class VaultService:
         if not root.is_dir():
             raise VaultError(f"Folder not found: {source_path}")
         self.vaults[name] = VaultInfo(name, source_path, 0)
-        count = 0
+        count, failed = 0, []
         try:
             for path in markdown_files(root):
                 try:
                     self._index_file(name, path)
-                except OSError:
+                except (OSError, EmbedderInputError):
+                    failed.append(str(path))
                     continue
                 count += 1
-        except EmbedderError as e:
+        except EmbedderError as e:  # Ollama down or model missing: nothing useful was built
             self.store.delete_vault(name)
             del self.vaults[name]
             raise VaultError(str(e)) from e
-        self.vaults[name].note_count = count
-        self._save()
-        return self.vaults[name].to_dict()
+        info = VaultInfo(name, source_path, count)
+        self._update_config(name, info)
+        result = info.to_dict()
+        if failed:
+            result["failed"] = failed
+        return result
 
     def create_new_vault(self, name: str, parent_dir: str) -> dict:
         clean = _clean_name(name)
@@ -117,41 +139,49 @@ class VaultService:
         if vault_dir.exists():
             raise VaultError(f"Directory already exists: {vault_dir}")
         vault_dir.mkdir(parents=True)
-        self.vaults[clean] = VaultInfo(clean, str(vault_dir), 0)
-        self._save()
+        self._update_config(clean, VaultInfo(clean, str(vault_dir), 0))
         return self.vaults[clean].to_dict()
 
     def delete_vault(self, name: str) -> None:
         self._vault(name)
         self.store.delete_vault(name)
-        del self.vaults[name]
-        self._save()
+        self._update_config(name, None)
 
     def refresh_vault(self, vault_name: str) -> dict:
         root = self._root(vault_name)
         on_disk = {str(p): p for p in markdown_files(root)}
         indexed = self.store.note_mtimes(vault_name)
         added = updated = removed = 0
-        try:
-            for key, path in on_disk.items():
-                if key not in indexed:
-                    self._index_file(vault_name, path)
-                    added += 1
-                elif path.stat().st_mtime != indexed[key]:
-                    self._index_file(vault_name, path)
-                    updated += 1
-        except EmbedderError as e:
-            raise VaultError(str(e)) from e
+        failed: list[str] = []
         for key in indexed.keys() - on_disk.keys():
             self.store.delete_note(vault_name, key)
             removed += 1
-        self.vaults[vault_name].note_count = len(on_disk)
-        self._save()
-        return {"added": added, "updated": updated, "removed": removed}
+        try:
+            for key, path in on_disk.items():
+                is_new = key not in indexed
+                if not is_new and path.stat().st_mtime == indexed[key]:
+                    continue
+                try:
+                    self._index_file(vault_name, path)
+                except (OSError, EmbedderInputError):
+                    failed.append(key)
+                    continue
+                if is_new:
+                    added += 1
+                else:
+                    updated += 1
+        except EmbedderError as e:
+            raise VaultError(str(e)) from e
+        info = VaultInfo(vault_name, self.vaults[vault_name].source_path, len(on_disk) - len(failed))
+        self._update_config(vault_name, info)
+        result = {"added": added, "updated": updated, "removed": removed}
+        if failed:
+            result["failed"] = failed
+        return result
 
     # --- search & browse ---------------------------------------------------------------
     def search_vault(self, vault_name: str, query: str, limit: int = 10) -> list[dict]:
-        self._vault(vault_name)
+        self._root(vault_name)  # a moved or deleted folder is an error, not stale results
         try:
             hits = search(self.store, self.embedder, query, vault=vault_name, limit=limit, opts=self.opts)
         except ValueError as e:
@@ -204,7 +234,7 @@ class VaultService:
     # --- notes & folders ---------------------------------------------------------------
     def save_note(self, vault_name: str, note_path: str, content: str) -> None:
         path = self.validate_path(vault_name, note_path)
-        path.write_text(content, encoding="utf-8")
+        self._write(path, content)
         try:
             self._index_file(vault_name, path)
         except EmbedderError as e:
@@ -227,9 +257,9 @@ class VaultService:
         full = parent / name
         if full.exists():
             raise VaultError(f"File already exists: {full}")
-        full.write_text(f"# {name[:-3]}\n", encoding="utf-8")
-        self.vaults[vault_name].note_count += 1
-        self._save()
+        self._write(full, f"# {name[:-3]}\n")
+        info = self.vaults[vault_name]
+        self._update_config(vault_name, VaultInfo(info.name, info.source_path, info.note_count + 1))
         return str(full)
 
     def delete_note(self, vault_name: str, note_path: str) -> None:
@@ -240,8 +270,7 @@ class VaultService:
             raise VaultError(f"Failed to delete file: {e}") from e
         self.store.delete_note(vault_name, note_path)
         info = self.vaults[vault_name]
-        info.note_count = max(0, info.note_count - 1)
-        self._save()
+        self._update_config(vault_name, VaultInfo(info.name, info.source_path, max(0, info.note_count - 1)))
 
     def create_folder(self, vault_name: str, parent_dir: str, folder_name: str) -> str:
         parent = self.validate_path(vault_name, parent_dir)
@@ -264,8 +293,8 @@ class VaultService:
         for key in list(self.store.note_mtimes(vault_name)):
             if key.startswith(prefix + "/") or key.startswith(prefix + "\\"):
                 self.store.delete_note(vault_name, key)
-        self.vaults[vault_name].note_count = len(markdown_files(root))
-        self._save()
+        info = self.vaults[vault_name]
+        self._update_config(vault_name, VaultInfo(info.name, info.source_path, len(markdown_files(root))))
 
     def rename_item(self, vault_name: str, old_path: str, new_name: str) -> str:
         old = self.validate_path(vault_name, old_path)

@@ -182,3 +182,76 @@ def test_embedder_failure_mid_ingest_leaves_no_partial_vault(tmp_path, data_dir,
         svc.create_vault("V", str(fixture_vault))
     assert svc.store.notes("V") == [] and "V" not in load_vaults()
     assert svc.store.conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
+
+
+# --- final-review fixes -------------------------------------------------------------------
+
+class RejectingEmbedder:
+    """Rejects any batch containing a marker, the way Ollama rejects over-long input."""
+
+    def __init__(self, inner, marker: str) -> None:
+        self.inner, self.marker = inner, marker
+
+    def embed_documents(self, texts):
+        from vaultdb.embedder import EmbedderInputError
+        if any(self.marker in t for t in texts):
+            raise EmbedderInputError("Ollama returned 400: the input length exceeds the context length")
+        return self.inner.embed_documents(texts)
+
+    def embed_query(self, text):
+        return self.inner.embed_query(text)
+
+
+def test_one_rejected_note_does_not_abort_the_vault(tmp_path, data_dir, fake_embedder, fixture_vault) -> None:
+    (fixture_vault / "Notes" / "poison.md").write_text("# Poison\n\nzzpoisonzz\n", encoding="utf-8")
+    svc = VaultService(Store(tmp_path / "db.sqlite3"), RejectingEmbedder(fake_embedder, "zzpoisonzz"))
+    info = svc.create_vault("V", str(fixture_vault))
+    assert info["failed"] == [str(fixture_vault / "Notes" / "poison.md")]
+    assert info["note_count"] == _md_count(fixture_vault) - 1
+    assert svc.search_vault("V", "glass button")
+
+
+def test_refresh_reports_rejected_notes_and_still_removes_deleted_ones(tmp_path, data_dir, fake_embedder, fixture_vault) -> None:
+    svc = VaultService(Store(tmp_path / "db.sqlite3"), RejectingEmbedder(fake_embedder, "zzpoisonzz"))
+    svc.create_vault("V", str(fixture_vault))
+    (fixture_vault / "Notes" / "poison.md").write_text("zzpoisonzz\n", encoding="utf-8")
+    (fixture_vault / "Notes" / "gamma.md").unlink()
+    result = svc.refresh_vault("V")
+    assert result["removed"] == 1 and result["failed"] == [str(fixture_vault / "Notes" / "poison.md")]
+
+
+def test_search_on_missing_source_folder_is_clear_error(svc, fixture_vault: Path, tmp_path: Path) -> None:
+    moved = tmp_path / "moved2"
+    shutil.copytree(fixture_vault, moved)
+    svc.create_vault("V", str(moved))
+    shutil.rmtree(moved)
+    with pytest.raises(VaultError, match="source folder not found"):
+        svc.search_vault("V", "glass")
+
+
+def test_save_note_writes_bytes_unchanged(svc, fixture_vault: Path) -> None:
+    svc.create_vault("V", str(fixture_vault))
+    path = fixture_vault / "Notes" / "beta.md"
+    svc.save_note("V", str(path), "# Beta\nline two\n")
+    assert path.read_bytes() == b"# Beta\nline two\n"  # no \r\n translation on Windows
+    svc.save_note("V", str(path), "# Beta\r\nkept crlf\r\n")
+    assert path.read_bytes() == b"# Beta\r\nkept crlf\r\n"
+
+
+def test_refresh_does_not_overwrite_vaults_added_by_another_process(tmp_path, data_dir, fake_embedder, fixture_vault) -> None:
+    app = VaultService(Store(tmp_path / "db.sqlite3"), fake_embedder)
+    app.create_vault("V", str(fixture_vault))
+    mcp = VaultService(Store(tmp_path / "db.sqlite3"), fake_embedder)  # loaded config before W existed
+    other = tmp_path / "other"
+    shutil.copytree(fixture_vault / "Notes", other)
+    app.create_vault("W", str(other))
+    mcp.refresh_vault("V")
+    assert set(load_vaults()) == {"V", "W"}
+
+
+def test_reload_vaults_picks_up_changes_from_another_process(tmp_path, data_dir, fake_embedder, fixture_vault) -> None:
+    a = VaultService(Store(tmp_path / "db.sqlite3"), fake_embedder)
+    b = VaultService(Store(tmp_path / "db.sqlite3"), fake_embedder)
+    a.create_vault("V", str(fixture_vault))
+    b.reload_vaults()
+    assert "V" in b.vaults

@@ -49,10 +49,10 @@ def main(argv: list[str] | None = None) -> None:
     import_legacy_echidna()
     service = VaultService(Store(db_path()), Embedder())
     api = Api(service)
-    watcher = VaultWatcher(api.on_file_change)
+    watcher = VaultWatcher(api._on_file_change)
     api._watcher = watcher
     window = webview.create_window("VaultDB", url, js_api=api, width=1200, height=800, min_size=(900, 600))
-    api.set_window(window)
+    api._set_window(window)
     try:
         webview.start()
     finally:

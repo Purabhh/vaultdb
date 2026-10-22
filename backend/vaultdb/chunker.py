@@ -11,6 +11,11 @@ from .markdown import ParsedNote
 
 DocKind = Literal["card", "code", "prose"]
 
+# nomic-embed-text in Ollama has a 2,048-token context. Dense code (SVG paths, Tailwind class
+# strings) runs as low as ~1.7 characters per token, so every embedded document stays under
+# MAX_CHARS (~1,750 tokens in the worst case).
+MAX_CHARS = 3000
+
 
 @dataclass
 class IndexDoc:
@@ -19,27 +24,34 @@ class IndexDoc:
     text: str
 
 
-def chunk_prose(text: str, size: int = 512, overlap: int = 64) -> list[str]:
-    """Word windows of `size` with `overlap`, same as the original Rust chunk_text."""
-    words = text.split()
+def chunk_prose(text: str, size: int = 512, overlap: int = 64, max_chars: int = MAX_CHARS) -> list[str]:
+    """Word windows of `size` with `overlap` (as the original Rust chunk_text), each capped at max_chars."""
+    words = [w[i:i + max_chars] for w in text.split() for i in range(0, len(w), max_chars)]
     if not words:
         return []
-    if len(words) <= size:
-        return [" ".join(words)]
-    chunks, start = [], 0
+    windows, start = [], 0
     while start < len(words):
         end = min(start + size, len(words))
-        chunks.append(" ".join(words[start:end]))
+        windows.append(words[start:end])
         if end >= len(words):
             break
         start += size - overlap
+    chunks = []
+    for window in windows:
+        cur: list[str] = []
+        for w in window:
+            if cur and len(" ".join(cur)) + 1 + len(w) > max_chars:
+                chunks.append(" ".join(cur))
+                cur = []
+            cur.append(w)
+        chunks.append(" ".join(cur))
     return chunks
 
 
 _DECL = re.compile(r"^(export|function|const|class|interface|type)\b")
 
 
-def chunk_code(code: str, max_lines: int = 120, max_chars: int = 4000) -> list[str]:
+def chunk_code(code: str, max_lines: int = 120, max_chars: int = MAX_CHARS) -> list[str]:
     """Split code at top-level declarations, merge small neighbours, hard-split long ones.
 
     Chunks are capped by lines and by characters: dense TSX (long class strings) can
@@ -85,7 +97,7 @@ def _is_preamble(lines: list[str]) -> bool:
     )
 
 
-CARD_MAX_CHARS = 4000  # keeps every embedded document inside the model's 2,048-token context
+CARD_MAX_CHARS = MAX_CHARS
 
 
 def _card_text(c: ComponentInfo, prose: str) -> tuple[str, bool]:

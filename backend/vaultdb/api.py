@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from typing import Any, Callable
 
 from .config import import_legacy_echidna, load_vaults
@@ -20,6 +21,9 @@ class Api:
         self._watcher = watcher
         self._window = window
         self._lock = threading.Lock()
+        # Paths the app itself just wrote: the watcher reports them ~2 s later, and treating
+        # those as outside edits would reload the open note and re-embed it a second time.
+        self._own_writes: dict[str, float] = {}
         s = service
         self._handlers: dict[str, Callable[[dict], Any]] = {
             "init_manager": lambda a: self._init_manager(),
@@ -31,13 +35,14 @@ class Api:
             "get_graph": lambda a: s.get_graph(a["vaultName"]),
             "get_file_tree": lambda a: s.get_file_tree(a["vaultName"]),
             "get_note_detail": lambda a: s.get_note_detail(a["vaultName"], a["notePath"]),
-            "save_note": lambda a: s.save_note(a["vaultName"], a["notePath"], a["content"]),
+            "save_note": lambda a: self._wrote(a["notePath"], s.save_note(a["vaultName"], a["notePath"], a["content"])),
             "reembed_note": lambda a: s.reembed_note(a["vaultName"], a["notePath"]),
-            "create_note": lambda a: s.create_note(a["vaultName"], a["parentDir"], a["fileName"]),
-            "delete_note": lambda a: s.delete_note(a["vaultName"], a["notePath"]),
+            "create_note": lambda a: self._wrote_result(s.create_note(a["vaultName"], a["parentDir"], a["fileName"])),
+            "delete_note": lambda a: self._wrote(a["notePath"], s.delete_note(a["vaultName"], a["notePath"])),
             "create_folder": lambda a: s.create_folder(a["vaultName"], a["parentDir"], a["folderName"]),
             "delete_folder": lambda a: s.delete_folder(a["vaultName"], a["folderPath"]),
-            "rename_item": lambda a: s.rename_item(a["vaultName"], a["oldPath"], a["newName"]),
+            "rename_item": lambda a: self._wrote_result(
+                s.rename_item(a["vaultName"], a["oldPath"], a["newName"]), also=a["oldPath"]),
             "watch_vault": lambda a: self._watch(a["vaultName"]),
             "pick_folder": lambda a: self._pick_folder(),
         }
@@ -58,17 +63,31 @@ class Api:
     def commands(self) -> list[str]:
         return sorted(self._handlers)
 
-    # --- called from Python ----------------------------------------------------------------
-    def set_window(self, window) -> None:
+    # --- called from Python (underscored so pywebview does not expose them to JavaScript) -----
+    _OWN_WRITE_WINDOW_S = 5.0
+
+    def _set_window(self, window) -> None:
         self._window = window
 
-    def emit(self, event: str, payload: dict) -> None:
+    def _emit(self, event: str, payload: dict) -> None:
         if self._window is not None:
             self._window.evaluate_js(
                 f"window.__vaultdbEmit && window.__vaultdbEmit({json.dumps(event)}, {json.dumps(payload)})")
 
-    def on_file_change(self, vault_name: str, path: str, kind: str) -> None:
-        self.emit("vault-file-change", {"vault_name": vault_name, "path": path, "kind": kind})
+    def _on_file_change(self, vault_name: str, path: str, kind: str) -> None:
+        wrote_at = self._own_writes.get(path)
+        if wrote_at is not None and time.monotonic() - wrote_at < self._OWN_WRITE_WINDOW_S:
+            return
+        self._emit("vault-file-change", {"vault_name": vault_name, "path": path, "kind": kind})
+
+    def _wrote(self, path: str, result=None):
+        self._own_writes[path] = time.monotonic()
+        return result
+
+    def _wrote_result(self, new_path: str, also: str | None = None) -> str:
+        if also:
+            self._wrote(also)
+        return self._wrote(new_path, new_path)
 
     # --- handlers --------------------------------------------------------------------------
     def _init_manager(self) -> None:

@@ -79,3 +79,32 @@ def test_wrong_dimension_rejected() -> None:
 def test_real_ollama_roundtrip() -> None:
     v = Embedder().embed_query("glass button")
     assert v.shape == (768,) and abs(float(np.linalg.norm(v)) - 1) < 1e-4
+
+
+def test_context_length_rejection_is_an_input_error() -> None:
+    from vaultdb.embedder import EmbedderInputError
+    h = lambda req: httpx.Response(400, json={"error": "the input length exceeds the context length"})  # noqa: E731
+    with pytest.raises(EmbedderInputError):
+        Embedder(transport=httpx.MockTransport(h)).embed_query("q")
+
+
+def test_unavailable_errors_are_not_input_errors() -> None:
+    from vaultdb.embedder import EmbedderInputError
+
+    def boom(req):
+        raise httpx.ConnectError("refused")
+    with pytest.raises(EmbedderError) as e:
+        Embedder(transport=httpx.MockTransport(boom)).embed_query("q")
+    assert not isinstance(e.value, EmbedderInputError)
+
+
+def test_old_ollama_404_is_not_reported_as_missing_model() -> None:
+    h = lambda req: httpx.Response(404, text="404 page not found")  # noqa: E731
+    with pytest.raises(EmbedderError) as e:
+        Embedder(transport=httpx.MockTransport(h)).embed_query("q")
+    assert "ollama pull" not in str(e.value)
+
+
+def test_base_url_from_environment(monkeypatch) -> None:
+    monkeypatch.setenv("VAULTDB_OLLAMA_URL", "http://example.invalid:9999")
+    assert Embedder().base_url == "http://example.invalid:9999"

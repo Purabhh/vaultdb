@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -41,13 +40,20 @@ def build_prompt(task: dict, arm: str, moc: str) -> str:
     return base
 
 
-def claude_command(arm: str, prompt: str, cfg_path: Path, mcp_bin: str) -> list[str]:
-    """The claude CLI call for one run. Every arm uses --strict-mcp-config so only the intended servers load."""
+def claude_command(arm: str, prompt: str, cfg_path: Path, mcp_bin: str, vault_path: Path) -> list[str]:
+    """The claude CLI call for one run.
+
+    Every arm uses --strict-mcp-config so only the intended servers load, and no arm may read the
+    vault folder directly: the "none" and "moc" arms must not reach the library by other means.
+    """
     servers = {"vaultdb": {"command": mcp_bin, "args": []}} if arm == "mcp" else {}
     Path(cfg_path).write_text(json.dumps({"mcpServers": servers}))
     tools = BASE_TOOLS + (MCP_TOOLS if arm == "mcp" else [])
+    vault = "/" + Path(vault_path).expanduser().resolve().as_posix()  # "//abs/path" = absolute rule
+    denied = [f"{tool}({vault}/**)" for tool in ("Read", "Grep", "Glob")]
     return ["claude", "-p", prompt, "--output-format", "json", "--permission-mode", "acceptEdits",
-            "--strict-mcp-config", "--mcp-config", str(cfg_path), "--allowedTools", ",".join(tools)]
+            "--strict-mcp-config", "--mcp-config", str(cfg_path), "--allowedTools", ",".join(tools),
+            "--disallowedTools", ",".join(denied)]
 
 
 TEMPLATE_FILES = {
@@ -89,14 +95,23 @@ def init_template(dest: Path) -> None:
     subprocess.run(["npm", "run", "build"], cwd=dest, check=True)
 
 
-def run_task(task: dict, arm: str, template: Path, out: Path, moc: str, mcp_bin: str, dry_run: bool) -> dict:
+def _copy_node_modules(src: Path, dest: Path) -> None:
+    """A private copy per run, so packages one run installs never leak into another.
+    Uses copy-on-write clones on macOS (fast, no extra disk) and falls back to a plain copy."""
+    if sys.platform == "darwin" and subprocess.run(["cp", "-cR", str(src), str(dest)]).returncode == 0:
+        return
+    shutil.copytree(src, dest, symlinks=True)
+
+
+def run_task(task: dict, arm: str, template: Path, out: Path, moc: str, mcp_bin: str, dry_run: bool,
+             vault_path: Path) -> dict:
     run_dir = out / arm / task["id"]
     project = run_dir / "project"
     if project.exists():
         shutil.rmtree(project)
     shutil.copytree(template, project, ignore=shutil.ignore_patterns("node_modules", "dist"))
-    os.symlink(template / "node_modules", project / "node_modules")
-    cmd = claude_command(arm, build_prompt(task, arm, moc), run_dir / "mcp.json", mcp_bin)
+    _copy_node_modules(template / "node_modules", project / "node_modules")
+    cmd = claude_command(arm, build_prompt(task, arm, moc), run_dir / "mcp.json", mcp_bin, vault_path)
     if dry_run:
         print(" ".join(cmd[:2]) + " <prompt> " + " ".join(cmd[3:]))
         return {"dry_run": True}
@@ -131,7 +146,8 @@ def main(argv: list[str] | None = None) -> None:
     moc = (args.vault_path.expanduser() / "Components-MOC.md").read_text(encoding="utf-8") if args.arm == "moc" else ""
     tasks = [t for t in load_tasks() if not args.tasks or t["id"] in args.tasks]
     for task in tasks:
-        result = run_task(task, args.arm, args.template.expanduser(), args.out, moc, args.mcp_bin, args.dry_run)
+        result = run_task(task, args.arm, args.template.expanduser(), args.out, moc, args.mcp_bin, args.dry_run,
+                          args.vault_path)
         print(f"{args.arm}/{task['id']}: {result}", flush=True)
 
 

@@ -1,6 +1,8 @@
 """Embeddings from a local Ollama server (nomic-embed-text, 768 dimensions)."""
 from __future__ import annotations
 
+import os
+
 import httpx
 import numpy as np
 
@@ -15,16 +17,20 @@ class EmbedderError(Exception):
     """Ollama could not produce embeddings; the message says what to do about it."""
 
 
+class EmbedderInputError(EmbedderError):
+    """Ollama is fine but rejected this particular input (e.g. longer than the model's context)."""
+
+
 class Embedder:
     def __init__(
         self,
-        base_url: str = DEFAULT_URL,
+        base_url: str | None = None,
         model: str = DEFAULT_MODEL,
         use_prefixes: bool = True,
         batch_size: int = 32,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
+        self.base_url = (base_url or os.environ.get("VAULTDB_OLLAMA_URL") or DEFAULT_URL).rstrip("/")
         self.model = model
         self.use_prefixes = use_prefixes
         self.batch_size = batch_size
@@ -52,10 +58,12 @@ class Embedder:
             ) from e
         except httpx.HTTPError as e:
             raise EmbedderError(f"Request to Ollama failed: {e}") from e
-        if resp.status_code == 404 and "not found" in resp.text:
+        if resp.status_code == 404 and "model" in resp.text and "not found" in resp.text:
             raise EmbedderError(
                 f"The embedding model '{self.model}' is not installed. Run: ollama pull {self.model}"
             )
+        if resp.status_code == 400 and ("context length" in resp.text or "input length" in resp.text):
+            raise EmbedderInputError(f"Ollama rejected the input as too long for '{self.model}': {resp.text[:200]}")
         if resp.status_code != 200:
             raise EmbedderError(f"Ollama returned {resp.status_code}: {resp.text[:200]}")
         vecs = np.asarray(resp.json().get("embeddings", []), dtype=np.float32)

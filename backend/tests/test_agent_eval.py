@@ -41,8 +41,8 @@ def test_prompt_per_arm() -> None:
 
 
 def test_claude_command_isolates_mcp_per_arm(tmp_path: Path) -> None:
-    none_cmd = claude_command("none", "p", tmp_path / "cfg.json", mcp_bin="/x/vaultdb-mcp")
-    mcp_cmd = claude_command("mcp", "p", tmp_path / "cfg.json", mcp_bin="/x/vaultdb-mcp")
+    none_cmd = claude_command("none", "p", tmp_path / "cfg.json", mcp_bin="/x/vaultdb-mcp", vault_path=tmp_path)
+    mcp_cmd = claude_command("mcp", "p", tmp_path / "cfg.json", mcp_bin="/x/vaultdb-mcp", vault_path=tmp_path)
     assert "--strict-mcp-config" in none_cmd and "--strict-mcp-config" in mcp_cmd
     assert json.loads((tmp_path / "cfg.json").read_text())["mcpServers"]["vaultdb"]["command"] == "/x/vaultdb-mcp"
     assert "mcp__vaultdb__get_component" in " ".join(mcp_cmd)
@@ -64,3 +64,23 @@ def test_score_counts_adoption_and_fidelity(tmp_path: Path) -> None:
     assert report["mcp"]["adoption"] == 1.0 and report["mcp"]["build"] == 1.0
     assert 0 < report["mcp"]["fidelity"] <= 1.0
     assert report["none"]["adoption"] == 0.0 and report["none"]["fidelity"] == 0.0 and report["none"]["build"] == 0.0
+
+
+def test_each_run_gets_its_own_node_modules(tmp_path: Path) -> None:
+    from vaultdb.eval.agent.run import run_task
+    template = tmp_path / "template"
+    (template / "node_modules" / "pkg").mkdir(parents=True)
+    (template / "node_modules" / "pkg" / "index.js").write_text("x")
+    (template / "src").mkdir()
+    task = {"id": "t1", "prompt": "p", "expected": []}
+    run_task(task, "none", template, tmp_path / "runs", moc="", mcp_bin="x", dry_run=True, vault_path=tmp_path)
+    nm = tmp_path / "runs" / "none" / "t1" / "project" / "node_modules"
+    assert nm.is_dir() and not nm.is_symlink() and (nm / "pkg" / "index.js").is_file()
+
+
+def test_runs_cannot_read_the_vault_directly(tmp_path: Path) -> None:
+    vault = tmp_path / "Components"
+    cmd = claude_command("none", "p", tmp_path / "cfg.json", mcp_bin="x", vault_path=vault)
+    denied = cmd[cmd.index("--disallowedTools") + 1]
+    for tool in ("Read", "Grep", "Glob"):
+        assert f"{tool}(/{vault.resolve().as_posix()}/**)" in denied

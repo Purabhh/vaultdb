@@ -152,3 +152,74 @@ def test_concurrent_writer_and_reader(tmp_path: Path) -> None:
     assert not [r for r in results if r[0] == "error"], results
     assert all(r[1] > 0 for r in results)
     assert sqlite3.connect(db).execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+
+
+def _open_store(db: str, q: "mp.Queue") -> None:
+    try:
+        Store(Path(db)).notes()
+        q.put("ok")
+    except Exception as e:  # pragma: no cover - reported to the parent
+        q.put(repr(e))
+
+
+def test_many_processes_can_create_a_fresh_store_at_once(tmp_path: Path) -> None:
+    ctx = mp.get_context("spawn")
+    for attempt in range(3):  # several fresh files to make the race likely
+        db = str(tmp_path / f"fresh{attempt}.sqlite3")
+        q = ctx.Queue()
+        procs = [ctx.Process(target=_open_store, args=(db, q)) for _ in range(8)]
+        for p in procs:
+            p.start()
+        for p in procs:
+            p.join(30)
+        results = [q.get(timeout=5) for _ in procs]
+        assert results == ["ok"] * 8, results
+
+
+def _open_repeatedly(db: str, seconds: float, q: "mp.Queue") -> None:
+    try:
+        end, n = time.time() + seconds, 0
+        while time.time() < end:
+            s = Store(Path(db))
+            s.notes()
+            s.close()
+            n += 1
+        q.put(("opener", n))
+    except Exception as e:  # pragma: no cover
+        q.put(("error", repr(e)))
+
+
+def test_opening_while_another_process_writes_a_fresh_db(tmp_path: Path) -> None:
+    ctx = mp.get_context("spawn")
+    db = str(tmp_path / "busy.sqlite3")  # not created up front: the writer creates it
+    q = ctx.Queue()
+    procs = [ctx.Process(target=_writer, args=(db, 3.0, q)), ctx.Process(target=_open_repeatedly, args=(db, 3.0, q))]
+    for p in procs:
+        p.start()
+    for p in procs:
+        p.join(30)
+    results = [q.get(timeout=5) for _ in procs]
+    assert not [r for r in results if r[0] == "error"], results
+
+
+def test_two_threads_opening_a_fresh_db_together(tmp_path: Path) -> None:
+    import threading
+
+    for attempt in range(25):
+        db = tmp_path / f"race{attempt}.sqlite3"
+        barrier = threading.Barrier(2)
+        errors: list[str] = []
+
+        def open_it() -> None:
+            barrier.wait()
+            try:
+                Store(db).notes()
+            except Exception as e:
+                errors.append(repr(e))
+
+        threads = [threading.Thread(target=open_it) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert errors == [], (attempt, errors)

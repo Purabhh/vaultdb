@@ -49,11 +49,6 @@ def test_every_frontend_command_is_mapped(api) -> None:
     assert FRONTEND_COMMANDS <= set(api.commands())
 
 
-def test_only_invoke_and_commands_are_public(api) -> None:
-    public = {n for n in dir(api) if not n.startswith("_")}
-    assert public == {"invoke", "commands", "emit", "on_file_change", "set_window"}
-
-
 def test_camelcase_args_reach_service(api, fixture_vault: Path) -> None:
     info = api.invoke("create_vault", {"name": "V", "sourcePath": str(fixture_vault)})
     assert info["name"] == "V" and api.invoke("list_vaults", None) == [info]
@@ -90,7 +85,7 @@ def test_service_errors_surface_as_plain_messages(api) -> None:
 
 
 def test_watcher_event_is_emitted_to_window(api) -> None:
-    api.on_file_change("V", "/v/a.md", "modify")
+    api._on_file_change("V", "/v/a.md", "modify")
     [code] = api._window.js
     assert "vault-file-change" in code
     payload = json.loads(code.split("vault-file-change\", ", 1)[1].rsplit(")", 1)[0])
@@ -124,3 +119,18 @@ def test_init_manager_survives_a_missing_vault_folder(api, tmp_path: Path, fixtu
     shutil.rmtree(gone)
     api.invoke("init_manager", None)  # does not raise
     assert [v["name"] for v in api.invoke("list_vaults", None)] == ["Gone"]
+
+
+def test_app_own_save_does_not_bounce_back_as_external_change(api, fixture_vault: Path) -> None:
+    api.invoke("create_vault", {"name": "V", "sourcePath": str(fixture_vault)})
+    note = str(fixture_vault / "Notes/beta.md")
+    api.invoke("save_note", {"vaultName": "V", "notePath": note, "content": "# Beta\nedited in app\n"})
+    api._on_file_change("V", note, "modify")  # the watcher sees the app's own write
+    assert api._window.js == []
+    api._on_file_change("V", str(fixture_vault / "Notes/alpha.md"), "modify")  # a real outside edit
+    assert len(api._window.js) == 1
+
+
+def test_only_invoke_and_commands_are_exposed_to_js(api) -> None:
+    public = {n for n in dir(api) if not n.startswith("_")}
+    assert public == {"invoke", "commands"}
