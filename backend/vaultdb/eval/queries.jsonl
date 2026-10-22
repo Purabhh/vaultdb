@@ -13,7 +13,7 @@
 {"q": "colorful gradient content card with a status badge and link", "gold": ["Cards/gradient-card.md"], "split": "dev"}
 {"q": "stack of cards you can drag and switch to a grid or list", "gold": ["Cards/morphing-card-stack.md"], "split": "heldout"}
 {"q": "swipeable deck of cards", "gold": ["Cards/morphing-card-stack.md"], "split": "dev"}
-{"q": "profile card with follower counts and a follow button", "gold": ["Cards/profile-card-social.md"], "split": "heldout"}
+{"q": "card for a person showing follower counts and a follow button", "gold": ["Cards/profile-card-social.md"], "split": "heldout"}
 {"q": "rotating chips that cycle through product features", "gold": ["Features/bucket.md"], "split": "dev"}
 {"q": "list of features that animate in one after another", "gold": ["Features/feature-highlight.md"], "split": "heldout"}
 {"q": "raycast style command palette", "gold": ["Forms/action-search-bar.md"], "split": "dev"}
@@ -31,7 +31,7 @@
 {"q": "full screen landing section with parallax images revealed on scroll", "gold": ["Heroes/smooth-scroll-hero.md"], "split": "dev"}
 {"q": "hero with an interactive 3d model next to the headline", "gold": ["Heroes/spline-scene.md"], "split": "heldout"}
 {"q": "placeholder grid shown while results load", "gold": ["Layouts/animated-loading-skeleton.md"], "split": "dev"}
-{"q": "page footer with links, social icons and copyright", "gold": ["Layouts/footer-simple.md"], "split": "heldout"}
+{"q": "bottom of the page section with links, social icons and copyright", "gold": ["Layouts/footer-simple.md"], "split": "heldout"}
 {"q": "expand and collapse section for faq answers", "gold": ["Modals/collapsible-four.md"], "split": "dev"}
 {"q": "button that morphs into a small note form", "gold": ["Modals/morphing-popover.md"], "split": "heldout"}
 {"q": "share menu with copy link and social buttons", "gold": ["Modals/popover-share.md"], "split": "dev"}
@@ -58,7 +58,7 @@
 {"q": "3d spinning feature badges", "gold": ["Features/bucket.md"], "split": "heldout"}
 {"q": "dark hero with a spotlight and a 3d robot", "gold": ["Heroes/spline-scene.md"], "split": "dev"}
 {"q": "bank card hero for a payments startup", "gold": ["Heroes/credit-card-hero.md"], "split": "heldout"}
-{"q": "footer with brand logo and link columns", "gold": ["Layouts/footer-simple.md"], "split": "dev"}
+{"q": "site bottom area with brand logo and link columns", "gold": ["Layouts/footer-simple.md"], "split": "dev"}
 {"q": "toast stack with close button", "gold": ["Modals/toast-system.md"], "split": "heldout"}
 {"q": "dot indicators for a slider", "gold": ["Navigation/morphing-page-dots.md"], "split": "dev"}
 {"q": "contact us form in two columns", "gold": ["Forms/contact-form.md"], "split": "heldout"}
@@ -67,4 +67,4 @@
 {"q": "shadcn style buttons with outline, ghost and destructive variants", "gold": ["Buttons/button-variants.md"], "split": "dev"}
 {"q": "go back link with an arrow icon", "gold": ["Buttons/back-button.md"], "split": "heldout"}
 {"q": "pie menu", "gold": ["Navigation/radial-menu.md"], "split": "dev"}
-{"q": "editor formatting toolbar with tooltips", "gold": ["Navigation/toolbar.md"], "split": "heldout"}
+{"q": "editor formatting bar with tooltips", "gold": ["Navigation/toolbar.md"], "split": "heldout"}
