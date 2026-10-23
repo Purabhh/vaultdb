@@ -132,6 +132,8 @@ On Windows, if `uv sync` fails while downloading Python, point it at an installe
 | Frontend | React + TypeScript + Vite, CodeMirror, react-force-graph |
 | File watching | watchdog |
 
+GitHub's language bar shows this repo as mostly TypeScript because the desktop frontend (React, CodeMirror, the graph view) is the largest share of the code. The indexing, search and MCP server, which are the core of VaultDB, are Python.
+
 ## License
 
 MIT
